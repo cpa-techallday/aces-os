@@ -59,7 +59,7 @@ CSP_TEMPLATE = ("default-src 'self'; script-src 'self'{hash}; style-src 'self' '
 IMPORTMAP_RE = re.compile(r"<script\s+type=([\"']?)importmap\1[^>]*>(.*?)</script>", re.S | re.I)
 VOCAB_PATH = Path(__file__).resolve().parent / "vocab.json"
 STREAMED = object()  # Response.body sentinel: the handler already wrote the stream
-MODULES = ("rig", "sim", "records", "ledgers", "system", "mc")
+MODULES = ("rig", "sim", "records", "ledgers", "system", "mc", "jobs")
 FIXTURE_BASES = ("grid_control", "rig_state", "simlab_mcp", "simlab_console", "mlflow")
 
 Route = namedtuple("Route", "method pattern regex handler")

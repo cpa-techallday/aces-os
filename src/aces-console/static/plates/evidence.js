@@ -7,6 +7,8 @@
 // /api/ledger?n=, /api/ledger/verify, /api/ledger/simlab, /api/projects; stamps golden.runs, ledger.aces, sim.evidence,
 // sim.evidence.verify (notices), console.health (inline: ledger_entries). Deep link ?plate=evidence&project=<name>&run=<id>.
 const GRADE_SENTENCE = "no grade is a sign-off";
+import { jobPanel, fileB64 } from "../lib/jobs.js";
+
 let R = null;
 
 export async function mount(root, ctx) {
@@ -14,9 +16,11 @@ export async function mount(root, ctx) {
   R = {
     ctx, root, res: {}, runs: null, projects: null, project: ctx.params.get("project") || "", run: ctx.params.get("run") || null, runProject: ctx.params.get("project") || null,
     detail: null, detailRes: null, verify: null, verifying: false, ledger: null, ledgerVerify: null, ledgerVerifying: false, chain: null, ledgerEntries: null, dead: false,
-    b: { runs: el("div"), detail: el("div"), ledger: el("div"), chain: el("div"), foot: el("div.plate-foot.mono") },
+    b: { start: el("div"), runs: el("div"), detail: el("div"), ledger: el("div"), chain: el("div"), foot: el("div.plate-foot.mono") },
+    startMode: "project", startJob: null, startResult: null, initResult: null,
   };
   root.append(
+    block("start a golden run · aces golden run on this desktop (and the rig lane when configured)", [R.b.start], { span2: true, id: "evi-start" }),
     block("golden runs · $ACES_WORK/<project>/golden/<run>/run.json", [R.b.runs], { span2: true, id: "evi-runs" }),
     block("run", [R.b.detail], { span2: true, id: "evi-run", coord: GRADE_SENTENCE }),
     block("desktop ledger · $ACES_STATE/ledger.jsonl", [R.b.ledger], { span2: true, id: "evi-ledger" }),
@@ -33,11 +37,95 @@ export async function mount(root, ctx) {
   R.res.projects = pr; R.projects = pr.ok ? pr.data : null;
   await Promise.all([loadRuns(), loadLedger(), loadChain()]);
   if (R.dead) return;
+  renderStart();
   if (R.run && R.runProject) await loadRun(R.runProject, R.run); else { renderDetail(); renderInspector(); }
   renderFoot();
 }
 
 export function unmount() { if (R) R.dead = true; R = null; }
+
+// ---------- start a golden run: a project with golden/spec.json, the built-in demo, or a STEP file as a new project ----------
+const GOLDEN_FIELDS = [
+  ["n", "designs in the sweep", "number"], ["seed", "sampler seed", "number"], ["res", "FEA resolution mm", "number"], ["gen_res", "generator resolution mm", "number"],
+  ["tol", "agreement tolerance (0-1)", "number"], ["rounds", "verification rounds", "number"], ["check", "finer independent check", ["", "auto", "off", "force"]],
+  ["device", "where the solves run", ["", "auto", "cpu", "gpu"]], ["conforming", "CalculiX second discretisation", ["", "auto", "rig", "local", "off"]],
+  ["lane", "rig lane (or none)", "text"], ["require_grade", "require at least", ["", "preview-grade", "verified-desktop", "rig-verified"]],
+  ["rig_sweep", "also sweep on the rig", "bool"], ["strict", "fail unless verified-desktop or better", "bool"],
+];
+function renderStart() {
+  const { dom } = R.ctx; const { el, clear, button, note } = dom;
+  const box = R.b.start; clear(box);
+  const projects = R.projects && Array.isArray(R.projects.projects) ? R.projects.projects.map((p) => p.name) : [];
+  const modeSel = el("select", { "aria-label": "what to run", onchange: (e) => { R.startMode = e.target.value; renderStart(); } },
+    [["project", "a project's golden/spec.json"], ["demo", "the built-in demo design space"], ["step", "a new project from a STEP file"]].map(([v, t]) => el("option", { value: v, text: t, selected: v === R.startMode ? "selected" : null })));
+  box.append(el("div.btnrow", [el("label.k", { text: "run" }), modeSel]));
+  let target = null; const getTarget = () => target && target();
+  if (R.startMode === "project") {
+    const sel = el("select", { "aria-label": "project" }, projects.map((n) => el("option", { value: n, text: n, selected: n === R.project ? "selected" : null })));
+    box.append(el("div.btnrow", [el("label.k", { text: "project" }), sel]));
+    target = () => ({ project: sel.value, confirm: sel.value });
+  } else if (R.startMode === "demo") {
+    const sel = el("select", { "aria-label": "demo" }, ["root-mount", "bone"].map((n) => el("option", { value: n, text: n })));
+    box.append(el("div.btnrow", [el("label.k", { text: "demo" }), sel, el("span.dim", { text: "runs in the project golden-demo" })]));
+    target = () => ({ demo: sel.value, confirm: "golden-demo" });
+  } else {
+    const name = el("input", { type: "text", placeholder: "new project name", "aria-label": "new project name", style: { maxWidth: "260px" } });
+    const cls = el("select", { "aria-label": "project class" }, ["personal", "open", "commercial", "sovereign", "controlled"].map((c) => el("option", { value: c, text: c })));
+    const hyp = el("input", { type: "text", placeholder: "hypothesis (optional)", "aria-label": "hypothesis" });
+    const file = el("input", { type: "file", accept: ".step,.stp", "aria-label": "STEP file" });
+    const create = button("Create the project from the STEP", { onclick: async () => {
+      const f = file.files[0];
+      if (!f || !name.value.trim()) { R.initResult = { cls: "act", text: "a project name and a STEP file are needed" }; renderStart(); return; }
+      R.initResult = { cls: "", text: `uploading ${f.name} and running aces golden init` }; renderStart();
+      const r = await R.ctx.api.post("/api/golden/init", { name: name.value.trim(), class: cls.value, hypothesis: hyp.value.trim() || null, step: { filename: f.name, data_b64: await fileB64(f) } });
+      if (!R || R.dead) return;
+      R.initResult = r.ok ? { cls: "", text: `project ${r.data.project} created with golden/spec.json from ${f.name} (ledger #${r.data.ledger_n}); pick it and start` } : { cls: r.status === 503 || r.status === 409 || r.status === 400 ? "act" : "fault", text: `${r.error} (HTTP ${r.status})` };
+      if (r.ok) { R.startMode = "project"; R.project = r.data.project; const pr = await R.ctx.api.get("/api/projects"); if (R && !R.dead) { R.projects = pr.ok ? pr.data : R.projects; } }
+      if (R && !R.dead) renderStart();
+    } });
+    box.append(el("div.toolform", [el("label", { text: "project name" }), name, el("label", { text: "class" }), cls, el("label", { text: "hypothesis" }), hyp, el("label", { text: "STEP file" }), file]), el("div.btnrow", [create]));
+    if (R.initResult) box.append(el("div.result." + (R.initResult.cls || "ok"), { text: R.initResult.text }));
+    return;
+  }
+  const opts = {};
+  const form = el("div.toolform");
+  for (const [key, label, kind] of GOLDEN_FIELDS) {
+    let input;
+    if (Array.isArray(kind)) input = el("select", { id: `gold-${key}` }, kind.map((v) => el("option", { value: v, text: v || "(default)" })));
+    else if (kind === "bool") input = el("input", { type: "checkbox", id: `gold-${key}` });
+    else input = el("input", { type: kind, id: `gold-${key}`, step: "any", placeholder: "default" });
+    opts[key] = { input, kind };
+    form.append(el("label", { for: `gold-${key}`, text: label }), input);
+  }
+  const note2 = el("input", { type: "text", placeholder: "a note carried into the evidence bundle (optional)", "aria-label": "note" });
+  const typed = el("input.type.short", { type: "text", autocomplete: "off", spellcheck: "false", "aria-label": "type the project name to start" });
+  const start = button("Start the golden run", { cls: "btn primary", disabled: true, onclick: async () => {
+    const t = getTarget(); if (!t) return;
+    const options = {};
+    for (const [key, f] of Object.entries(opts)) {
+      if (f.kind === "bool") { if (f.input.checked) options[key] = true; continue; }
+      const v = f.input.value; if (v === "") continue;
+      options[key] = f.kind === "number" ? Number(v) : v;
+    }
+    start.disabled = true;
+    const r = await R.ctx.api.post("/api/golden/run", { ...t, confirm: typed.value, options, note: note2.value.trim() || null });
+    if (!R || R.dead) return;
+    R.startJob = r.ok ? r.data.job : null;
+    R.startResult = r.ok ? null : { cls: r.status === 503 || r.status === 400 || r.status === 409 || r.status === 404 ? "act" : "fault", text: `${r.error} (HTTP ${r.status}${r.code ? ", " + r.code : ""})` };
+    renderStart();
+  } });
+  const refresh = () => { const t = getTarget(); typed.placeholder = t ? `type ${t.confirm} to start` : ""; start.disabled = !t || typed.value !== t.confirm; };
+  typed.addEventListener("input", refresh);
+  box.querySelectorAll("select").forEach((s) => s.addEventListener("change", refresh));
+  box.append(el("details", [el("summary", { text: "options (blank keeps the spec's own values)" }), form]), note2, el("div.actrow", [typed, start]));
+  refresh();
+  if (!projects.length && R.startMode === "project") box.append(note("no projects", "create one from a STEP file, or run the demo"));
+  if (R.startResult) box.append(el("div.result." + R.startResult.cls, { text: R.startResult.text }));
+  if (R.startJob) box.append(jobPanel(R.ctx, R.startJob, { onDone: (j) => {
+    if (!R || R.dead) return;
+    loadRuns().then(() => { const rid = j.result && j.result.run_id; if (rid && R && !R.dead) loadRun(j.project, rid); });
+  } }));
+}
 
 // ---------- data ----------
 async function loadRuns() {

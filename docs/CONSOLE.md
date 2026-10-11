@@ -155,9 +155,20 @@ console's GET-only `/gc` read proxy on the rig (which forwards with the rig's ow
 Writes (chats, missions, approvals, uploads, the red-team VM, the auto-switch, the mode switch) need the token on this
 desktop: `~/.config/aces/gridcontrol.env` with `ACES_GC_TOKEN=...`, mode 0600.
 
+### Golden runs and CAD actions (0.1.0-3)
+
+The Evidence plate starts golden runs (a project's `golden/spec.json`, the built-in demo, or a STEP file made into a
+new project with `aces golden init`), with every `aces golden run` option, confirmed by typing the project name;
+the run's progress streams into the plate and the finished run opens. The Objects plate runs `aces-cad` inspect,
+render, drawing, pull and re-run with changed parameters (the run's own script in the sandbox; new code stays the
+agents' text-to-CAD path) on a selected run, and prune on the project (typed `prune <project>`). Each start is
+ledgered (`console.golden.run`, `console.golden.init`, `console.cad.<verb>`, `console.job.cancel`); routes:
+`GET /api/jobs`, `GET /api/job/{id}?since=`, `POST /api/job/{id}/cancel`, `POST /api/golden/run`,
+`POST /api/golden/init`, `POST /api/cad/action`.
+
 ### Still deferred
 
-CAD worker actions (inspect, render, drawing, pull, prune), starting golden runs, approvals of consequential actions
+Approvals of consequential actions
 (a UI button is not an approval: the aces.approvals overlay with a physical-presence factor), LAN/VPN binding and the
 phone client, a systemd user unit, per-mode lanes from GRID CONTROL, a light theme, ACES Studio (the video lane: no
 video service is deployed on the rig).

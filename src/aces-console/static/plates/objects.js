@@ -8,6 +8,7 @@
 // /api/cad/runs?project=, /api/cad/run/{p}/{id}, /api/cad/file/..., /api/cad/bundles?project=, /api/cad/bundle/...,
 // POST /api/cad/bundle-check/{p}/{name}, /api/cad/notes/{p}, /api/cad/drawings/{p}, /api/cad/onshape/{p} (spec 3.10,
 // 4.3 Objects). Deep link ?plate=objects&project=<name>&run=<id>.
+import { jobPanel } from "../lib/jobs.js";
 import { Viewer } from "../viewer.js";
 import { fetchBuffer, parseBinarySTL } from "../loaders.js";
 
@@ -19,12 +20,13 @@ export async function mount(root, ctx) {
     ctx, root, projectsRes: null, projects: null, project: ctx.params.get("project") || null, run: ctx.params.get("run") || null,
     res: {}, runs: null, detail: null, detailRes: null, bundles: null, notes: null, drawings: null, onshape: null,
     checks: {}, checking: {}, viewer: null, viewerFor: null, viewerNote: null, dead: false,
-    b: { project: el("div"), runs: el("div"), detail: el("div"), drawings: el("div"), bundles: el("div"), viewer: el("div"), notes: el("div"), onshape: el("div"), foot: el("div.plate-foot.mono") },
+    b: { actions: el("div"), project: el("div"), runs: el("div"), detail: el("div"), drawings: el("div"), bundles: el("div"), viewer: el("div"), notes: el("div"), onshape: el("div"), foot: el("div.plate-foot.mono") },
   };
   root.append(
     block("project", [R.b.project], { span2: true, id: "obj-project" }),
     block("CAD runs · <project>/cad/local/runs/<id>/run.json", [R.b.runs], { span2: true, id: "obj-runs" }),
     block("run", [R.b.detail], { span2: true, id: "obj-run" }),
+    block("CAD actions · aces-cad on this desktop, ledgered as console.cad.*", [R.b.actions], { span2: true, id: "obj-actions" }),
     block("drawings · aces.cad.drawing/1", [R.b.drawings], { span2: true, id: "obj-drawings" }),
     block("bundles · <project>/cad/local/<stamp>-<name>", [R.b.bundles], { span2: true, id: "obj-bundles" }),
     block("part viewer · part.stl of a bundle, through the file route", [R.b.viewer], { span2: true, id: "obj-viewer" }),
@@ -71,11 +73,11 @@ async function loadProject(name) {
 
 async function loadRun(runId) {
   R.run = runId; R.detail = null; R.detailRes = null;
-  renderRuns(); renderDetail();
+  renderRuns(); renderDetail(); renderActions();
   const r = await R.ctx.api.get(`/api/cad/run/${encodeURIComponent(R.project)}/${encodeURIComponent(runId)}`);
   if (!R || R.dead || R.run !== runId) return;
   R.detailRes = r; R.detail = r.ok ? r.data : null;
-  renderRuns(); renderDetail(); renderInspector();
+  renderRuns(); renderDetail(); renderActions(); renderInspector();
 }
 
 function setURL() {
@@ -86,7 +88,7 @@ function setURL() {
 }
 
 function selectProject(name) { if (name === R.project) return; R.run = null; R.project = name; setURL(); loadProject(name); }
-function selectRun(id) { R.run = R.run === id ? null : id; setURL(); if (R.run) loadRun(R.run); else { R.detail = null; R.detailRes = null; renderRuns(); renderDetail(); renderInspector(); } }
+function selectRun(id) { R.run = R.run === id ? null : id; setURL(); if (R.run) loadRun(R.run); else { R.detail = null; R.detailRes = null; renderRuns(); renderDetail(); renderActions(); renderInspector(); } }
 
 function chip(vocabulary, word, title = null) {
   const { vocab, dom } = R.ctx;
@@ -98,7 +100,68 @@ const fileURL = (runId, rel) => `/api/cad/file/${encodeURIComponent(R.project)}/
 const bundleURL = (name, rel) => `/api/cad/bundle/${encodeURIComponent(R.project)}/${encodeURIComponent(name)}/${rel.split("/").map(encodeURIComponent).join("/")}`;
 
 // ---------- rendering ----------
-function renderAll() { renderRuns(); renderDetail(); renderDrawings(); renderBundles(); renderViewer(); renderNotes(); renderOnshape(); renderFoot(); }
+function renderAll() { renderRuns(); renderDetail(); renderActions(); renderDrawings(); renderBundles(); renderViewer(); renderNotes(); renderOnshape(); renderFoot(); }
+
+// ---------- CAD actions: inspect, render, drawing, pull, re-run with parameters (the run's own script), prune ----------
+async function cadAction(action, options, confirm = null) {
+  const r = await R.ctx.api.post("/api/cad/action", { project: R.project, action, run: action === "prune" ? null : R.run, options, ...(confirm ? { confirm } : {}) });
+  if (!R || R.dead) return;
+  R.actionJob = r.ok ? { id: r.data.job, action } : null;
+  R.actionResult = r.ok ? null : { text: `${action}: ${r.error} (HTTP ${r.status}${r.code ? ", " + r.code : ""})`, cls: r.status === 503 || r.status === 400 || r.status === 409 ? "act" : "fault" };
+  renderActions();
+}
+function renderActions() {
+  const { dom } = R.ctx; const { el, clear, note, button } = dom;
+  const box = R.b.actions; if (!box) return; clear(box);
+  if (!R.project) { box.append(note("no project", "pick a project")); return; }
+  const rec = R.detail && R.detail.record ? R.detail.record : null;
+  if (R.run && rec) {
+    const size = el("select", { "aria-label": "render size" }, ["small", "medium", "large"].map((v) => el("option", { value: v, text: v, selected: v === "medium" ? "selected" : null })));
+    const proj = el("select", { "aria-label": "drawing projection" }, ["third-angle", "first-angle"].map((v) => el("option", { value: v, text: v })));
+    const pullName = el("input", { type: "text", placeholder: "pull name (optional)", "aria-label": "pull name", style: { maxWidth: "220px" } });
+    box.append(el("div.cap", { text: `run ${R.run}` }));
+    box.append(el("div.btnrow", [
+      button("Inspect", { title: "aces-cad inspect: measure the geometry in a worker that runs no agent code", onclick: () => cadAction("inspect", {}) }),
+      el("span", [button("Render", { title: "aces-cad render: PNG views", onclick: () => cadAction("render", { size: size.value }) }), " ", size]),
+      el("span", [button("Drawing", { title: "aces-cad drawing: a dimensioned 1:1 mm drawing (DXF, SVG, PNG)", onclick: () => cadAction("drawing", { projection: proj.value }) }), " ", proj]),
+      el("span", [button("Pull into the project", { cls: "btn primary", title: "aces-cad pull: STEP (+ STL, 3MF), parameters, sha256 and a cad.pull ledger entry", onclick: () => cadAction("pull", pullName.value.trim() ? { name: pullName.value.trim() } : {}) }), " ", pullName]),
+    ]));
+    const params = rec.params && typeof rec.params === "object" ? Object.entries(rec.params) : [];
+    if (params.length) {
+      const inputs = {};
+      const form = el("div.toolform");
+      for (const [key, v] of params) {
+        const unit = rec.params_declared && rec.params_declared[key] && rec.params_declared[key].unit ? ` (${rec.params_declared[key].unit})` : "";
+        inputs[key] = { input: el("input", { type: typeof v === "number" ? "number" : "text", step: "any", value: String(v), id: `obj-p-${key}` }), orig: v };
+        form.append(el("label", { for: `obj-p-${key}`, text: key + unit }), inputs[key].input);
+      }
+      const withRender = el("input", { type: "checkbox", id: "obj-rerun-render", checked: true });
+      box.append(el("div.cap", { text: "re-run with parameters · the run's own script in the sandbox (no new code)" }), form,
+        el("div.btnrow", [el("label", { for: "obj-rerun-render" }, [withRender, " also render the iso view"]), button("Re-run", { cls: "btn primary", onclick: () => {
+          const over = {};
+          for (const [key, f] of Object.entries(inputs)) {
+            const raw = f.input.value; if (raw === "" || String(f.orig) === raw) continue;
+            over[key] = typeof f.orig === "number" ? Number(raw) : typeof f.orig === "boolean" ? raw === "true" : raw;
+          }
+          cadAction("rerun", { params: over, render: withRender.checked });
+        } })]));
+    } else box.append(el("div.prose.dim", { text: "this run recorded no parameters: re-run is not offered" }));
+  } else box.append(note("no run selected", "select a CAD run above for inspect, render, drawing, pull and re-run"));
+  const keep = el("input", { type: "number", min: "1", step: "1", value: "10", "aria-label": "runs to keep", style: { maxWidth: "90px" } });
+  const words = `prune ${R.project}`;
+  const typed = el("input.type.short", { type: "text", autocomplete: "off", spellcheck: "false", placeholder: `type ${words}`, "aria-label": `type ${words} to enable pruning` });
+  const pruneBtn = button("Prune old runs", { disabled: true, title: "aces-cad prune: deletes runs beyond the newest N (runs named by a pull are kept)", onclick: () => cadAction("prune", { keep: parseInt(keep.value, 10) }, typed.value) });
+  typed.addEventListener("input", () => { pruneBtn.disabled = typed.value !== words; });
+  box.append(el("div.cap", { text: "project · prune deletes runs beyond the newest N; pulled runs are kept" }), el("div.actrow", [el("span.k", { text: "keep" }), keep, typed, pruneBtn]));
+  if (R.actionResult) box.append(el("div.result." + R.actionResult.cls, { text: R.actionResult.text }));
+  if (R.actionJob) {
+    box.append(jobPanel(R.ctx, R.actionJob.id, { onDone: (j) => {
+      if (!R || R.dead) return;
+      const runId = j.result && (j.result.run_id || (j.result.run && j.result.run.run_id));
+      loadProject(R.project).then(() => { if (j.kind === "cad.rerun" && runId) selectRun(runId); });
+    } }));
+  }
+}
 
 function renderProject() {
   const { dom } = R.ctx; const { el, clear, absence, note } = dom;
