@@ -1,0 +1,612 @@
+{
+ "harness": "playwright (verify_records)",
+ "url": "http://127.0.0.1:8070",
+ "ran_utc": "2026-10-11T10:31:55Z",
+ "work_store": true,
+ "viewports": [
+  {
+   "viewport": "1440x900",
+   "console_errors": [],
+   "page_errors": [],
+   "requests_failed": [],
+   "plates": {
+    "pipeline": {
+     "plate": "pipeline",
+     "deep_link": "experiment=aces-cal-air-03d&root=queue&case=c000",
+     "scales_named": {
+      "cases": true,
+      "queue_jobs": true
+     },
+     "two_scales_side_by_side": true,
+     "experiment_rows": 66,
+     "case_rows": 9,
+     "experiment_shown": true,
+     "rq_and_meta_headed": true,
+     "case_shown": true,
+     "mlflow_card": true,
+     "mlflow_card_text": "status (as MLflow reports it)",
+     "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 40,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 15578,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 18045,
+      "hits": []
+     },
+     "status_words": [
+      "console:FINISHED",
+      "meta:failed",
+      "meta:finished",
+      "meta:queued",
+      "meta:running",
+      "meta:waiting_for_gpu",
+      "rq:deferred",
+      "rq:failed",
+      "rq:finished",
+      "rq:queued"
+     ],
+     "ok": true,
+     "notes": []
+    },
+    "solvers": {
+     "plate": "solvers",
+     "deep_link": "solver=golden-case",
+     "registry_rows": 14,
+     "lanes_not_recorded": 14,
+     "not_citable_notes": 9,
+     "pass_chips": 12,
+     "fail_chips": 2,
+     "inspector": "golden-case\npass \u00b7 image id recorded",
+     "inspector_names_selected": true,
+     "activity_labels_seen": [
+      "outside the queue (operator hand-run)",
+      "rests by mode sim-lab-4",
+      "not in the sim pool",
+      "idle"
+     ],
+     "gpu_rows": 8,
+     "mode_rows": 12,
+     "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 29,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 6391,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 8855,
+      "hits": []
+     },
+     "status_words": [
+      "registry:fail",
+      "registry:not recorded",
+      "registry:pass"
+     ],
+     "ok": true
+    },
+    "objects": {
+     "plate": "objects",
+     "deep_link": "project=cad-vm&run=20261010T101628Z-0ffb",
+     "work_store": true,
+     "run_rows": 16,
+     "run_detail": {
+      "name_plate": true,
+      "volume": true,
+      "sandbox_strict": true,
+      "files_listed": 13
+     },
+     "drawings_loaded": [
+      {
+       "src": "/api/cad/file/cad-vm/20261010T101628Z-0ffb/drawings/plate-fa5cc45b.svg",
+       "complete": true,
+       "width": 930
+      }
+     ],
+     "drawings_line": [
+      "2",
+      "1"
+     ],
+     "dimension_rows": 6,
+     "hole_table_none": true,
+     "bundle_rows": 4,
+     "notes_entries": 1,
+     "onshape": "ONSHAPE\nconnected\nfalse\nproject class\nsovereign\nnote\nthis console never reads Onshape keys\ngate\nOnshape pull is gated by class in aces_onshape/project.py:26 and :149-157; this console does not evaluate that gate\nonshape.env is never opened by this console; the Onshape adapter (aces-cad-onshape) is a separate command with its own class gate",
+     "onshape_not_connected": true,
+     "bundle_check": {
+      "lines": 8,
+      "all_match_line": true,
+      "tail": "check_bundle: /home/aces/Work/cad-vm/cad/local/20261010T101736Z-plate: all files match"
+     },
+     "viewer": {
+      "note": "20261010T101736Z-plate/part.stl \u00b7 520 triangles \u00b7 bbox 0.0,0.0,0.0 to 60.0,40.0,5.0 mm \u00b7 26084 bytes",
+      "loaded": true
+     },
+     "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 18,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 6599,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 7878,
+      "hits": []
+     },
+     "status_words": [
+      "cad:error",
+      "cad:ok"
+     ],
+     "ok": true
+    },
+    "evidence": {
+     "plate": "evidence",
+     "deep_link": "project=cad-gold&run=20261010T102210Z-bc7391",
+     "work_store": true,
+     "golden_rows": 1,
+     "project_filter": "cad-gold",
+     "grade_line": {
+      "grade": "verified-desktop",
+      "next": "no grade is a sign-off"
+     },
+     "grade_then_sentence": true,
+     "stage_rows": 9,
+     "compute_rows": 15,
+     "sweep_rows": 10,
+     "verify_check_rows_before": -1,
+     "provenance": true,
+     "iframe": {
+      "src": "/api/golden/file/cad-gold/20261010T102210Z-bc7391/report.html",
+      "sandbox": "",
+      "title": "report.html of golden run 20261010T102210Z-bc7391 (sandboxed: no scripts, no origin)"
+     },
+     "iframe_document": {
+      "title": "aces golden root-mount 20261010T102210Z-bc7391",
+      "text_chars": 17944
+     },
+     "figures": [
+      {
+       "alt": "figure check_levels.png",
+       "complete": true,
+       "width": 1731
+      },
+      {
+       "alt": "figure conforming.png",
+       "complete": true,
+       "width": 2303
+      },
+      {
+       "alt": "figure optimise_map.png",
+       "complete": true,
+       "width": 1080
+      },
+      {
+       "alt": "figure sweep_gallery.png",
+       "complete": true,
+       "width": 1430
+      },
+      {
+       "alt": "figure sweep_scatter.png",
+       "complete": true,
+       "width": 1367
+      }
+     ],
+     "verify": {
+      "result": "verify ok \u00b7 11 of 13 checks pass, 2 not run \u00b7 exit 0",
+      "check_rows": 13
+     },
+     "verify_ledger": "ok \u00b7 11 entries \u00b7 chain intact",
+     "ledger_rows": 11,
+     "chain_rows": 13,
+     "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 91
+     },
+     "vocab": {
+      "checked": 12,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 12008,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 24059,
+      "hits": []
+     },
+     "status_words": [
+      "run:done"
+     ],
+     "notes": [],
+     "ok": true
+    }
+   },
+   "action_status_errors": []
+  },
+  {
+   "viewport": "390x844",
+   "console_errors": [],
+   "page_errors": [],
+   "requests_failed": [],
+   "plates": {
+    "pipeline": {
+     "plate": "pipeline",
+     "deep_link": "experiment=aces-cal-air-03d&root=queue&case=c000",
+     "scales_named": {
+      "cases": true,
+      "queue_jobs": true
+     },
+     "two_scales_side_by_side": true,
+     "experiment_rows": 66,
+     "case_rows": 9,
+     "experiment_shown": true,
+     "rq_and_meta_headed": true,
+     "case_shown": true,
+     "mlflow_card": true,
+     "mlflow_card_text": "status (as MLflow reports it)",
+     "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 40,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 14842,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 17458,
+      "hits": []
+     },
+     "status_words": [
+      "console:FINISHED",
+      "meta:failed",
+      "meta:finished",
+      "meta:queued",
+      "meta:running",
+      "meta:waiting_for_gpu",
+      "rq:deferred",
+      "rq:failed",
+      "rq:finished",
+      "rq:queued"
+     ],
+     "ok": true,
+     "notes": []
+    },
+    "solvers": {
+     "plate": "solvers",
+     "deep_link": "solver=golden-case",
+     "registry_rows": 14,
+     "lanes_not_recorded": 14,
+     "not_citable_notes": 9,
+     "pass_chips": 12,
+     "fail_chips": 2,
+     "inspector": "golden-case\npass \u00b7 image id recorded",
+     "inspector_names_selected": true,
+     "activity_labels_seen": [
+      "outside the queue (operator hand-run)",
+      "rests by mode sim-lab-4",
+      "not in the sim pool",
+      "idle"
+     ],
+     "gpu_rows": 8,
+     "mode_rows": 12,
+     "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 29,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 5991,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 8430,
+      "hits": []
+     },
+     "status_words": [
+      "registry:fail",
+      "registry:not recorded",
+      "registry:pass"
+     ],
+     "ok": true
+    },
+    "objects": {
+     "plate": "objects",
+     "deep_link": "project=cad-vm&run=20261010T101628Z-0ffb",
+     "work_store": true,
+     "run_rows": 16,
+     "run_detail": {
+      "name_plate": true,
+      "volume": true,
+      "sandbox_strict": true,
+      "files_listed": 13
+     },
+     "drawings_loaded": [
+      {
+       "src": "/api/cad/file/cad-vm/20261010T101628Z-0ffb/drawings/plate-fa5cc45b.svg",
+       "complete": true,
+       "width": 930
+      }
+     ],
+     "drawings_line": [
+      "2",
+      "1"
+     ],
+     "dimension_rows": 6,
+     "hole_table_none": true,
+     "bundle_rows": 4,
+     "notes_entries": 1,
+     "onshape": "ONSHAPE\nconnected\nfalse\nproject class\nsovereign\nnote\nthis console never reads Onshape keys\ngate\nOnshape pull is gated by class in aces_onshape/project.py:26 and :149-157; this console does not evaluate that gate\nonshape.env is never opened by this console; the Onshape adapter (aces-cad-onshape) is a separate command with its own class gate",
+     "onshape_not_connected": true,
+     "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 18,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 5956,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 6848,
+      "hits": []
+     },
+     "status_words": [
+      "cad:error",
+      "cad:ok"
+     ],
+     "ok": true
+    },
+    "evidence": {
+     "plate": "evidence",
+     "deep_link": "project=cad-gold&run=20261010T102210Z-bc7391",
+     "work_store": true,
+     "golden_rows": 1,
+     "project_filter": "cad-gold",
+     "grade_line": {
+      "grade": "verified-desktop",
+      "next": "no grade is a sign-off"
+     },
+     "grade_then_sentence": true,
+     "stage_rows": 9,
+     "compute_rows": 15,
+     "sweep_rows": 10,
+     "verify_check_rows_before": -1,
+     "provenance": true,
+     "iframe": {
+      "src": "/api/golden/file/cad-gold/20261010T102210Z-bc7391/report.html",
+      "sandbox": "",
+      "title": "report.html of golden run 20261010T102210Z-bc7391 (sandboxed: no scripts, no origin)"
+     },
+     "iframe_document": {
+      "title": "aces golden root-mount 20261010T102210Z-bc7391",
+      "text_chars": 17944
+     },
+     "figures": [
+      {
+       "alt": "figure check_levels.png",
+       "complete": true,
+       "width": 1731
+      },
+      {
+       "alt": "figure conforming.png",
+       "complete": true,
+       "width": 2303
+      },
+      {
+       "alt": "figure optimise_map.png",
+       "complete": true,
+       "width": 1080
+      },
+      {
+       "alt": "figure sweep_gallery.png",
+       "complete": true,
+       "width": 1430
+      },
+      {
+       "alt": "figure sweep_scatter.png",
+       "complete": true,
+       "width": 1367
+      }
+     ],
+     "ledger_rows": 11,
+     "chain_rows": 13,
+     "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 12,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 10567,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 22134,
+      "hits": []
+     },
+     "status_words": [
+      "run:done"
+     ],
+     "notes": [],
+     "ok": true
+    }
+   },
+   "action_status_errors": []
+  }
+ ],
+ "browser": "chromium 151.0.7922.34",
+ "fixture": "FIXTURE 2026-10-11"
+}

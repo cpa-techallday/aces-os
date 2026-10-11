@@ -1,0 +1,907 @@
+{
+ "harness": "playwright",
+ "url": "http://127.0.0.1:8070",
+ "ran_utc": "2026-10-11T10:31:21Z",
+ "viewports": [
+  {
+   "viewport": "1440x900",
+   "console_errors": [],
+   "page_errors": [],
+   "requests_failed": [],
+   "streams_closed_by_page": [
+    "http://127.0.0.1:8070/api/events?plate=fabric net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=projects net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=pipeline net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=solvers net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=objects net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=evidence net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=agents net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=ops net::ERR_ABORTED"
+   ],
+   "plates": {
+    "fabric": {
+     "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 12,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 5373,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 6214,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": [
+      "endpoint:stopped by mode sim-lab-4 (by design)",
+      "endpoint:unreachable (not explained by mode sim-lab-4)",
+      "endpoint:reachable"
+     ]
+    },
+    "projects": {
+     "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 0,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 1055,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 843,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": []
+    },
+    "pipeline": {
+     "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 9,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 9652,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 11916,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": [
+      "rq:finished",
+      "rq:failed",
+      "rq:queued",
+      "rq:deferred",
+      "meta:finished",
+      "meta:failed",
+      "meta:running",
+      "meta:waiting_for_gpu",
+      "meta:queued"
+     ]
+    },
+    "solvers": {
+     "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 28,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 6179,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 8308,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": [
+      "registry:pass",
+      "registry:not recorded",
+      "registry:fail"
+     ]
+    },
+    "objects": {
+     "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 16,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 5391,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 5982,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": [
+      "cad:error",
+      "cad:ok"
+     ]
+    },
+    "evidence": {
+     "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 4,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 3429,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 6665,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": [
+      "run:done"
+     ],
+     "grade_sentence": {
+      "present": true,
+      "note": null
+     }
+    },
+    "agents": {
+     "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 135,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 14708,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 38482,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": [
+      "mc:failed",
+      "mc:exhausted",
+      "mc:succeeded",
+      "mc:review",
+      "mc:done",
+      "mc:enabled"
+     ]
+    },
+    "ops": {
+     "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 0,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 6122,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 15119,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": []
+    },
+    "projects:cad-gold": {
+     "project": "cad-gold",
+     "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 1,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 2254,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 2258,
+      "hits": []
+     },
+     "status_words": [
+      "run:done"
+     ],
+     "grade_sentence": {
+      "present": true,
+      "note": "the Projects plate prints the sentence under its golden-runs table"
+     }
+    }
+   },
+   "tabs": {
+    "reached": [
+     {
+      "focused": "fabric",
+      "selected": "fabric",
+      "panel_visible": true
+     },
+     {
+      "focused": "projects",
+      "selected": "projects",
+      "panel_visible": true
+     },
+     {
+      "focused": "pipeline",
+      "selected": "pipeline",
+      "panel_visible": true
+     },
+     {
+      "focused": "solvers",
+      "selected": "solvers",
+      "panel_visible": true
+     },
+     {
+      "focused": "objects",
+      "selected": "objects",
+      "panel_visible": true
+     },
+     {
+      "focused": "evidence",
+      "selected": "evidence",
+      "panel_visible": true
+     },
+     {
+      "focused": "agents",
+      "selected": "agents",
+      "panel_visible": true
+     },
+     {
+      "focused": "ops",
+      "selected": "ops",
+      "panel_visible": true
+     }
+    ],
+    "all_seven": true
+   },
+   "stamp": "MODE SIM-LAB-4 \u00b7 DETECTED TRANSITION \u00b7 MANIFEST 1.1 D STALE \u00b7 LIVE",
+   "fixture_stamped": false,
+   "stream_state": "MODE SIM-LAB-4 \u00b7 DETECTED TRANSITION \u00b7 MANIFEST 1.1 D STALE \u00b7 LIVE",
+   "screenshot": "C:\\Users\\shedm\\AppData\\Local\\Temp\\claude\\C--Users-shedm\\3c52762a-0b3b-4f55-9f39-96d315f13241\\scratchpad\\ui-build\\shots-vm\\fabric-1440x900.png"
+  },
+  {
+   "viewport": "390x844",
+   "console_errors": [],
+   "page_errors": [],
+   "requests_failed": [],
+   "streams_closed_by_page": [
+    "http://127.0.0.1:8070/api/events?plate=fabric net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=projects net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=pipeline net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=solvers net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=objects net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=evidence net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=agents net::ERR_ABORTED",
+    "http://127.0.0.1:8070/api/events?plate=ops net::ERR_ABORTED"
+   ],
+   "plates": {
+    "fabric": {
+     "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 12,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 4981,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 5817,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": [
+      "endpoint:stopped by mode sim-lab-4 (by design)",
+      "endpoint:unreachable (not explained by mode sim-lab-4)",
+      "endpoint:reachable"
+     ]
+    },
+    "projects": {
+     "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 0,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 927,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 709,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": []
+    },
+    "pipeline": {
+     "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 9,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 9324,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 11622,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": [
+      "rq:finished",
+      "rq:failed",
+      "rq:queued",
+      "rq:deferred",
+      "meta:finished",
+      "meta:failed",
+      "meta:running",
+      "meta:waiting_for_gpu",
+      "meta:queued"
+     ]
+    },
+    "solvers": {
+     "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 28,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 5739,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 7832,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": [
+      "registry:pass",
+      "registry:not recorded",
+      "registry:fail"
+     ]
+    },
+    "objects": {
+     "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 16,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 4855,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 5498,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": [
+      "cad:error",
+      "cad:ok"
+     ]
+    },
+    "evidence": {
+     "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 4,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 3061,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 6353,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": [
+      "run:done"
+     ],
+     "grade_sentence": {
+      "present": true,
+      "note": null
+     }
+    },
+    "agents": {
+     "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 135,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 14372,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 37859,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": [
+      "mc:failed",
+      "mc:exhausted",
+      "mc:succeeded",
+      "mc:review",
+      "mc:done",
+      "mc:enabled"
+     ]
+    },
+    "ops": {
+     "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 0,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 5786,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 14861,
+      "hits": []
+     },
+     "placeholder": false,
+     "status_words": []
+    },
+    "projects:cad-gold": {
+     "project": "cad-gold",
+     "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "ok": true,
+      "offenders": [],
+      "clipped_offenders": 0
+     },
+     "vocab": {
+      "checked": 1,
+      "unknown": [],
+      "labels_wrong": []
+     },
+     "colours": {
+      "tokens": [
+       "6,18,37",
+       "10,20,40",
+       "13,26,51",
+       "18,34,64",
+       "219,231,243",
+       "169,187,208",
+       "125,144,168",
+       "34,211,238",
+       "245,158,11",
+       "255,77,46"
+      ],
+      "checked": 1918,
+      "unparsed": 0,
+      "offenders": [],
+      "n_offenders": 0
+     },
+     "text": {
+      "checked": 2011,
+      "hits": []
+     },
+     "status_words": [
+      "run:done"
+     ],
+     "grade_sentence": {
+      "present": true,
+      "note": "the Projects plate prints the sentence under its golden-runs table"
+     }
+    }
+   },
+   "tabs": {
+    "reached": [
+     {
+      "focused": "fabric",
+      "selected": "fabric",
+      "panel_visible": true
+     },
+     {
+      "focused": "projects",
+      "selected": "projects",
+      "panel_visible": true
+     },
+     {
+      "focused": "pipeline",
+      "selected": "pipeline",
+      "panel_visible": true
+     },
+     {
+      "focused": "solvers",
+      "selected": "solvers",
+      "panel_visible": true
+     },
+     {
+      "focused": "objects",
+      "selected": "objects",
+      "panel_visible": true
+     },
+     {
+      "focused": "evidence",
+      "selected": "evidence",
+      "panel_visible": true
+     },
+     {
+      "focused": "agents",
+      "selected": "agents",
+      "panel_visible": true
+     },
+     {
+      "focused": "ops",
+      "selected": "ops",
+      "panel_visible": true
+     }
+    ],
+    "all_seven": true
+   },
+   "stamp": "MODE SIM-LAB-4\nLIVE",
+   "fixture_stamped": false,
+   "stream_state": "MODE SIM-LAB-4\nLIVE",
+   "screenshot": "C:\\Users\\shedm\\AppData\\Local\\Temp\\claude\\C--Users-shedm\\3c52762a-0b3b-4f55-9f39-96d315f13241\\scratchpad\\ui-build\\shots-vm\\fabric-390x844.png"
+  }
+ ],
+ "browser": "chromium 151.0.7922.34",
+ "fixture": "FIXTURE 2026-10-11"
+}

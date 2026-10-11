@@ -373,3 +373,28 @@ The step list as planned:
 
 `post-install/aces-install.sh` runs `aces-cad doctor` and `aces-cad selftest` on a fresh install when aces-cad is
 installed (steps 2 and 3 in short form).
+
+## aces-console on the VM (2026-10-11)
+
+The single ACES console (`aces-console` 0.1.0-2, with aces-base 0.1.0-4, aces-omarchy 0.1.0-7, aces-os 0.1.0-7),
+built signed on DARKNESS and served by `serve-repo.ps1`. Script and outputs: `reports/2026-10-11-aces-console-vm/`.
+
+1. `yes | sudo pacman -Sy aces-base aces-console aces-omarchy aces-os`: pacman asked to remove the conflicting
+   `aces-consoles`; the answer was yes. Afterwards `aces-console 0.1.0-2`, no `aces-consoles`, one launcher entry
+   (`/usr/share/applications/aces.desktop`), no GRID CONTROL, SIMLAB or MLflow launcher entries, the `[console]` table.
+2. `aces-console start` from an ssh shell: health with all six modules installed, static tree from the package, bound to
+   127.0.0.1:8070 only, pid and log under `~/.local/state/aces/console`.
+3. Live reads from the VM: rig status, Mission Control agents/runs/missions/chats (through the rig's `/gc` read proxy:
+   the VM holds no GRID CONTROL token), the 17 simlab-mcp tools, SIMLAB experiments, MLflow experiments, the registry,
+   the VM's three projects, 16+ CAD runs, the golden runs, the desktop ledger verifying, decisions, red team, model
+   staging; the three replaced consoles listed but not openable.
+4. Human-only writes: a POST without the human headers 403, from another Origin 403, a write tool without its typed
+   name 400, a read tool (`sim_whoami`) answering; the ledger stayed at 11 entries and `aces ledger verify` passed.
+5. From DARKNESS through `ssh -L 8070:127.0.0.1:8070`: `verify_ui.py` and `verify_records.py` against the installed
+   console PASS at 1440x900 and 390x844 (all eight tabs by keyboard, 0 console errors, no overflow).
+
+Result: 33 PASS / 0 FAIL, both harnesses PASS. Not done: opening the console window inside the VM's own desktop
+session. The VM sits at the Omarchy login screen (`vm-console-login-screen.png`) and its password is not typed by an
+agent; after logging in, the "ACES" entry of the app launcher (or `aces-console open`) opens it. Writes to GRID
+CONTROL (chats, missions, the switch, auto-switch, red team) need `~/.config/aces/gridcontrol.env` on the VM.
+

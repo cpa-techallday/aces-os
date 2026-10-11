@@ -1,0 +1,45 @@
+== 1 install (replacement of aces-consoles chosen at pacman's prompt)
+New optional dependencies for aces-omarchy
+    aces-console: the ACES console launcher entry (the one desktop console) [installed]
+upgrading aces-os...
+:: Running post-transaction hooks...
+(1/2) Arming ConditionNeedsUpdate...
+(2/2) Updating the desktop file MIME type cache...
+PASS aces-console 0.1.0-2 installed
+PASS aces-consoles removed (pacman -Qq has no such name)
+PASS aces-base 0.1.0-4
+PASS aces-os 0.1.0-7 depends on aces-console
+PASS one launcher entry: /usr/share/applications/aces.desktop
+PASS no GRID CONTROL / SIMLAB / MLflow launcher entries left
+PASS static tree installed
+PASS [console] table in /etc/aces/aces.toml
+== 2 start and health
+started: pid 9319 at http://127.0.0.1:8070
+PASS health answers with all six modules installed
+PASS served from the package (static_source config)
+PASS binds 127.0.0.1:8070 only
+PASS server.log and server.pid under ~/.local/state/aces/console
+== 3 live reads from the VM (rig over the LAN, records from disk)
+PASS Fabric: rig status with a mode
+PASS Agents: Mission Control agents (token or read proxy)
+PASS Agents: Mission Control runs
+PASS Agents: missions
+PASS Agents: chat sessions
+PASS Pipeline: simlab-mcp tools (17)
+PASS Pipeline: SIMLAB experiments
+PASS Pipeline: MLflow experiments
+PASS Solvers: registry
+PASS Projects: the VM's three projects
+PASS Objects: cad-vm runs
+PASS Evidence: golden runs
+PASS Evidence: desktop ledger verifies
+PASS Ops: decisions, red team, model staging
+PASS Ops: GRID CONTROL / SIMLAB / MLflow listed, not openable
+== 4 human-only writes
+PASS POST without the human headers is 403 (sim tool)
+PASS POST from another origin is 403 (auto-switch)
+PASS a write tool without its typed name is refused (400)
+PASS a read tool runs (sim_whoami)
+PASS no ledger entry from refused or read actions (11 -> 11)
+PASS aces ledger verify
+RESULT: 33 passed, 0 failed
