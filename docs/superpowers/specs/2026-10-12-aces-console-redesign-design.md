@@ -74,6 +74,9 @@ Approach A: conversation as the spine; the existing plates become panels the thr
   after plan/spec confirmation — triggers the fixed pipeline. The agent may only *trigger*
   runs with a validated spec; the run itself is the deterministic golden pipeline
   (hybrid model, approved). Every agent action lands in the existing operator ledger.
+  The agent's model backend (local rig-hosted model vs an external API) is deliberately
+  left to the implementation plan; the spec only requires that no credential or ledger
+  discipline changes.
 - **New API routes** (all loopback, token discipline unchanged):
   - `POST /api/loop/message` — submit a thread message; returns plan/spec-draft/running state
   - `GET /api/loop/thread/{id}` + SSE stamp `loop.thread` — thread state and deltas
