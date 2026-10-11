@@ -89,6 +89,12 @@ class ConsoleB(Console):
                  static_dir: str | Path | None = None, bind: str = "127.0.0.1", state: Path | None = None, tag: str = "console-b"):
         import threading
 
+        # the state and work roots current before this console, restored by Console.close()
+        self._prev_state = (aces_config.STATE, os.environ.get("ACES_STATE"))
+        self._prev_work = (aces_config.WORK, os.environ.get("ACES_WORK"))
+        if state is not None:  # a given state (a restart test) is made current like a fresh one
+            aces_config.STATE = state
+            os.environ["ACES_STATE"] = str(state)
         self.state = state or fresh_state(tag)
         overrides = {"server": {"grid_control": gc or closed_url(), "rig_state": (rigstate or closed_url()) + "/mcp",
                                 "simlab_console": simlab_console or closed_url(), "simlab_mcp": simlab_mcp or closed_url("/mcp"),

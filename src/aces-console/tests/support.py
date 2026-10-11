@@ -62,6 +62,12 @@ class Console:
     def __init__(self, *, gc: str | None = None, rigstate: str | None = None, simlab_console: str | None = None,
                  fixtures: str | Path | None = None, static_dir: str | Path | None = None, bind: str = "127.0.0.1",
                  state: Path | None = None, tag: str = "console"):
+        # the state and work roots current before this console, restored by Console.close()
+        self._prev_state = (aces_config.STATE, os.environ.get("ACES_STATE"))
+        self._prev_work = (aces_config.WORK, os.environ.get("ACES_WORK"))
+        if state is not None:  # a given state (a restart test) is made current like a fresh one
+            aces_config.STATE = state
+            os.environ["ACES_STATE"] = str(state)
         self.state = state or fresh_state(tag)
         overrides = {"server": {"grid_control": gc or closed_url(), "rig_state": (rigstate or closed_url()) + "/mcp",
                                 "simlab_console": simlab_console or closed_url(), "simlab_mcp": closed_url("/mcp"),
@@ -177,6 +183,17 @@ class Console:
         self.httpd.shutdown()
         self.app.shutdown()
         self.thread.join(5)
+        # put the previous ACES_STATE back, so a later test class (and the devserver it starts) never inherits this
+        # console's ledger (a makepkg check() found that leak: 8 entries where an empty store was expected)
+        for attr, env, prev in (("STATE", "ACES_STATE", getattr(self, "_prev_state", None)),
+                                ("WORK", "ACES_WORK", getattr(self, "_prev_work", None))):
+            if prev is None:
+                continue
+            setattr(aces_config, attr, prev[0])
+            if prev[1] is None:
+                os.environ.pop(env, None)
+            else:
+                os.environ[env] = prev[1]
 
     def log_text(self) -> str:
         try:
