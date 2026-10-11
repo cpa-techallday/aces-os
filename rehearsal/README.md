@@ -398,3 +398,11 @@ session. The VM sits at the Omarchy login screen (`vm-console-login-screen.png`)
 agent; after logging in, the "ACES" entry of the app launcher (or `aces-console open`) opens it. Writes to GRID
 CONTROL (chats, missions, the switch, auto-switch, red team) need `~/.config/aces/gridcontrol.env` on the VM.
 
+### Golden runs and CAD actions from the console (aces-console 0.1.0-4, 2026-10-11)
+
+`reports/2026-10-11-aces-console-vm/vm-jobs-accept.sh` (6 PASS / 0 FAIL): through the console's own API, as its pages
+do, a golden run of the built-in demo with `--lane none` (computed on the VM only) finished as
+`20261011T122641Z-b3ac99` (pass, verified-desktop, 50.3 s, 48 progress lines; `aces golden verify` exit 0), and
+`aces-cad` inspect and render ran on cad-vm's latest run. The ledger went from 13 to 17 entries and verifies. 0.1.0-3
+refused the `lane` option; 0.1.0-4 fixes it. Both UI harnesses pass against the installed console.
+

@@ -1,0 +1,45 @@
+harness playwright · browser chromium 151.0.7922.34 · http://127.0.0.1:8070
+[1440x900] console errors 0 · page errors 0 · failed requests 0 · streams closed by the page 8 (expected on plate change) · stamp 'MODE SIM-LAB-4 · DETECTED TRANSITION · MANIFEST 1.2 D STALE · LIVE' · fixture stamped False
+[1440x900] tabs reachable by keyboard: ['fabric', 'projects', 'pipeline', 'solvers', 'objects', 'evidence', 'agents', 'ops'] all seven True
+[1440x900] fabric: overflow 1440<=1440 ok=True · status words 12 unknown 0 labels wrong 0 · colours checked 5373 offenders 0 (unparsed 0) · tokens 10 · text 6147 chars stray null/undefined 0
+[1440x900]   words: endpoint:stopped by mode sim-lab-4 (by design), endpoint:unreachable (not explained by mode sim-lab-4), endpoint:reachable
+[1440x900] projects: overflow 1440<=1440 ok=True · status words 0 unknown 0 labels wrong 0 · colours checked 1055 offenders 0 (unparsed 0) · tokens 10 · text 844 chars stray null/undefined 0
+[1440x900] pipeline: overflow 1440<=1440 ok=True · status words 9 unknown 0 labels wrong 0 · colours checked 9652 offenders 0 (unparsed 0) · tokens 10 · text 11915 chars stray null/undefined 0
+[1440x900]   words: rq:finished, rq:failed, rq:queued, rq:deferred, meta:finished, meta:failed, meta:running, meta:waiting_for_gpu, meta:queued
+[1440x900] solvers: overflow 1440<=1440 ok=True · status words 28 unknown 0 labels wrong 0 · colours checked 6179 offenders 0 (unparsed 0) · tokens 10 · text 8245 chars stray null/undefined 0
+[1440x900]   words: registry:pass, registry:not recorded, registry:fail
+[1440x900] objects: overflow 1440<=1440 ok=True · status words 16 unknown 0 labels wrong 0 · colours checked 5490 offenders 0 (unparsed 0) · tokens 10 · text 6227 chars stray null/undefined 0
+[1440x900]   words: cad:error, cad:ok
+[1440x900] evidence: overflow 1440<=1440 ok=True · status words 5 unknown 0 labels wrong 0 · colours checked 4252 offenders 0 (unparsed 0) · tokens 10 · text 8118 chars stray null/undefined 0
+[1440x900]   words: run:done
+[1440x900]   'no grade is a sign-off' on Evidence: present=True 
+[1440x900] agents: overflow 1440<=1440 ok=True · status words 135 unknown 0 labels wrong 0 · colours checked 14408 offenders 0 (unparsed 0) · tokens 10 · text 31144 chars stray null/undefined 0
+[1440x900]   words: mc:failed, mc:exhausted, mc:succeeded, mc:review, mc:done, mc:enabled
+[1440x900] ops: overflow 1440<=1440 ok=True · status words 0 unknown 0 labels wrong 0 · colours checked 6122 offenders 0 (unparsed 0) · tokens 10 · text 15116 chars stray null/undefined 0
+[1440x900] projects:cad-gold: overflow 1440<=1440 ok=True · status words 1 unknown 0 labels wrong 0 · colours checked 2278 offenders 0 (unparsed 0) · tokens 10 · text 2311 chars stray null/undefined 0
+[1440x900]   words: run:done
+[1440x900]   'no grade is a sign-off' on Evidence: present=True the Projects plate prints the sentence under its golden-runs table
+[1440x900] screenshot C:\Users\shedm\AppData\Local\Temp\claude\C--Users-shedm\3c52762a-0b3b-4f55-9f39-96d315f13241\scratchpad\ui-build\shots-vm2\fabric-1440x900.png
+[390x844] console errors 0 · page errors 0 · failed requests 0 · streams closed by the page 8 (expected on plate change) · stamp 'MODE SIM-LAB-4 / LIVE' · fixture stamped False
+[390x844] tabs reachable by keyboard: ['fabric', 'projects', 'pipeline', 'solvers', 'objects', 'evidence', 'agents', 'ops'] all seven True
+[390x844] fabric: overflow 390<=390 ok=True · status words 12 unknown 0 labels wrong 0 · colours checked 4981 offenders 0 (unparsed 0) · tokens 10 · text 5759 chars stray null/undefined 0
+[390x844]   words: endpoint:stopped by mode sim-lab-4 (by design), endpoint:unreachable (not explained by mode sim-lab-4), endpoint:reachable
+[390x844] projects: overflow 390<=390 ok=True · status words 0 unknown 0 labels wrong 0 · colours checked 927 offenders 0 (unparsed 0) · tokens 10 · text 705 chars stray null/undefined 0
+[390x844] pipeline: overflow 390<=390 ok=True · status words 9 unknown 0 labels wrong 0 · colours checked 9324 offenders 0 (unparsed 0) · tokens 10 · text 11624 chars stray null/undefined 0
+[390x844]   words: rq:finished, rq:failed, rq:queued, rq:deferred, meta:finished, meta:failed, meta:running, meta:waiting_for_gpu, meta:queued
+[390x844] solvers: overflow 390<=390 ok=True · status words 28 unknown 0 labels wrong 0 · colours checked 5739 offenders 0 (unparsed 0) · tokens 10 · text 7771 chars stray null/undefined 0
+[390x844]   words: registry:pass, registry:not recorded, registry:fail
+[390x844] objects: overflow 390<=390 ok=True · status words 16 unknown 0 labels wrong 0 · colours checked 4954 offenders 0 (unparsed 0) · tokens 10 · text 5742 chars stray null/undefined 0
+[390x844]   words: cad:error, cad:ok
+[390x844] evidence: overflow 390<=390 ok=True · status words 5 unknown 0 labels wrong 0 · colours checked 3884 offenders 0 (unparsed 0) · tokens 10 · text 7802 chars stray null/undefined 0
+[390x844]   words: run:done
+[390x844]   'no grade is a sign-off' on Evidence: present=True 
+[390x844] agents: overflow 390<=390 ok=True · status words 135 unknown 0 labels wrong 0 · colours checked 14072 offenders 0 (unparsed 0) · tokens 10 · text 30524 chars stray null/undefined 0
+[390x844]   words: mc:failed, mc:exhausted, mc:succeeded, mc:review, mc:done, mc:enabled
+[390x844] ops: overflow 390<=390 ok=True · status words 0 unknown 0 labels wrong 0 · colours checked 5786 offenders 0 (unparsed 0) · tokens 10 · text 14861 chars stray null/undefined 0
+[390x844] projects:cad-gold: overflow 390<=390 ok=True · status words 1 unknown 0 labels wrong 0 · colours checked 1918 offenders 0 (unparsed 0) · tokens 10 · text 2011 chars stray null/undefined 0
+[390x844]   words: run:done
+[390x844]   'no grade is a sign-off' on Evidence: present=True the Projects plate prints the sentence under its golden-runs table
+[390x844] screenshot C:\Users\shedm\AppData\Local\Temp\claude\C--Users-shedm\3c52762a-0b3b-4f55-9f39-96d315f13241\scratchpad\ui-build\shots-vm2\fabric-390x844.png
+findings written to C:\Users\shedm\AppData\Local\Temp\claude\C--Users-shedm\3c52762a-0b3b-4f55-9f39-96d315f13241\scratchpad\ui-build\shots-vm2\findings.json
+RESULT: PASS

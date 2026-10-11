@@ -1,0 +1,22 @@
+== install 0.1.0-4
+(1/2) Arming ConditionNeedsUpdate...
+(2/2) Updating the desktop file MIME type cache...
+PASS aces-console 0.1.0-4 installed
+started: pid 10293 at http://127.0.0.1:8070
+modules rig,sim,records,ledgers,system,mc,jobs
+== a golden run from the console (demo root-mount, lane none)
+job cf725faaabeb
+status=done exit=0 run=20261011T122641Z-b3ac99 outcome=pass grade=verified-desktop duration=50.3s lines=48
+PASS golden run job done
+PASS a new run directory under golden-demo/golden (3 -> 4)
+listed by the console: True
+aces golden verify exit 0
+== CAD actions from the console (cad-vm, latest run)
+cad.inspect: status=done exit=0 ok=None
+PASS inspect job done
+cad.render: status=done exit=0 ok=None
+PASS render job done
+== ledger
+['console.golden.run', 'golden.run', 'console.cad.inspect', 'console.cad.render']
+PASS aces ledger verify (13 -> 17 entries)
+RESULT: 6 passed, 0 failed

@@ -205,11 +205,15 @@ def check_evidence(page, url, vocab, label, interact, has_work):
         v = out["verify"]["result"]
         verify_ok = ("aces-engineering not installed (exit 127)" in v) or (out["verify"]["check_rows"] >= 13)
         verify_ok = verify_ok and "chain intact" in out["verify_ledger"]
+    # the rows the page shows against the server's own counts (a live store grows: the VM's ledger is no snapshot)
+    out["ledger_total"] = page.evaluate("fetch('/api/ledger?n=200').then((r) => r.json()).then((d) => d.data ? d.data.n_total : null)")
+    out["chain_total"] = page.evaluate("fetch('/api/ledger/simlab').then((r) => r.json()).then((d) => d.data && Array.isArray(d.data.entries) ? d.data.entries.length : null)")
     figures_ok = len(out["figures"]) >= 4 and all(f["complete"] and f["width"] > 0 for f in out["figures"])
     iframe_ok = out["iframe"] is not None and out["iframe"]["sandbox"] == "" and "report.html" in (out["iframe"]["src"] or "")
     out["notes"] = [] if "text_chars" in out["iframe_document"] else [f"the sandboxed report frame could not be read by the harness ({out['iframe_document'].get('not_read')}); the iframe element and its src are checked"]
     out["ok"] = (out["golden_rows"] == 1 and out["project_filter"] == GOLDEN[0] and out["grade_then_sentence"] and out["stage_rows"] == 9 and out["compute_rows"] == 15 and out["sweep_rows"] == 10
-                 and out["provenance"] and iframe_ok and figures_ok and out["ledger_rows"] == 11 and out["chain_rows"] == 13 and verify_ok)
+                 and out["provenance"] and iframe_ok and figures_ok and out["ledger_rows"] == min(out["ledger_total"] or 0, 200) and out["ledger_rows"] >= 11
+                 and out["chain_rows"] == (out["chain_total"] if out["chain_total"] is not None else 13) and verify_ok)
     return out
 
 
