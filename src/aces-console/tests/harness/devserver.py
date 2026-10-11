@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+import importlib.util
 import json
 import mimetypes
 import os
@@ -500,7 +501,11 @@ class Handler(BaseHTTPRequestHandler):
         S = s.samples
         A = s.aces
         if path == "/vocab.json":
-            for p in (os.path.join(PKG, "aces_console", "vocab.json"), os.path.join(HERE, "vocab.json")):
+            spec = importlib.util.find_spec("aces_console")  # the installed backend's table (tests under /usr/share)
+            installed = os.path.join(os.path.dirname(spec.origin), "vocab.json") if spec and spec.origin else None
+            for p in (os.path.join(PKG, "aces_console", "vocab.json"), installed, os.path.join(HERE, "vocab.json")):
+                if not p:
+                    continue
                 if os.path.isfile(p):
                     with open(p, encoding="utf-8") as fh:
                         return 200, json.load(fh)

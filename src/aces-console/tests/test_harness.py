@@ -127,13 +127,14 @@ class TestStaticTree(unittest.TestCase):
         self.assertIn('aria-live="polite"', html)
         self.assertIn('role="tablist"', html)
         self.assertIn('class="skip"', html)
-        for plate in ("fabric", "projects", "pipeline", "solvers", "objects", "evidence", "ops"):
+        for plate in ("fabric", "projects", "pipeline", "solvers", "objects", "evidence", "agents", "ops"):
             self.assertTrue(os.path.isfile(os.path.join(STATIC, "plates", plate + ".js")))
 
     def test_vocab_json_matches_spec_4_4(self):
         with open(os.path.join(HARNESS, "vocab.json"), encoding="utf-8") as fh:
             v = json.load(fh)["vocabularies"]
-        self.assertEqual(sorted(v), ["cad", "case", "console", "endpoint", "meta", "registry", "rq", "run"])
+        self.assertEqual(sorted(v), ["cad", "case", "console", "endpoint", "mc", "meta", "registry", "rq", "run"])
+        self.assertEqual(v["mc"]["fault"], ["failed", "exhausted", "error"])
         self.assertEqual(v["console"]["fault"], ["FAILED"])
         self.assertEqual(v["rq"]["cyan"], ["started"])
         self.assertEqual(v["meta"]["chalk"], ["queued", "waiting_for_gpu", "finished"])

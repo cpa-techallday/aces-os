@@ -1,84 +1,178 @@
 {
- "schema": "aces-console-vocab/1",
- "note": "The status vocabularies and the Four Inks of ui-spec-full.md section 4.4 (2026-10-11), one entry per source scale. The backend serves its copy (aces_console/vocab.json, Builder A) at /vocab.json; this file is the harness devserver's copy and must stay identical. A word carrying <mode> matches any mode name.",
- "inks": {
-  "chalk": "exists, neutral (a finished or passing state draws a check glyph)",
-  "cyan": "live now",
-  "amber": "acts: anything a person did or must do, mode names, pending text, STALE, FIXTURE",
-  "fault": "only the faulted thing"
- },
- "vocabularies": {
-  "console": {
-   "label": "console",
-   "name": "console case",
-   "source": "cudax simlab/console/app.py:161-175",
-   "chalk": ["PENDING", "FINISHED"],
-   "cyan": ["RUNNING"],
-   "amber": ["STALE"],
-   "fault": ["FAILED"]
+  "schema": "aces-console-vocab/1",
+  "note": "The status vocabularies and the Four Inks of ui-spec-full.md section 4.4 (2026-10-11), one entry per source scale. The backend serves its copy (aces_console/vocab.json, Builder A) at /vocab.json; this file is the harness devserver's copy and must stay identical. A word carrying <mode> matches any mode name.",
+  "inks": {
+    "chalk": "exists, neutral (a finished or passing state draws a check glyph)",
+    "cyan": "live now",
+    "amber": "acts: anything a person did or must do, mode names, pending text, STALE, FIXTURE",
+    "fault": "only the faulted thing"
   },
-  "rq": {
-   "label": "rq",
-   "name": "rq job",
-   "source": "cudax simlab/queue.py:185-201",
-   "chalk": ["queued", "deferred", "scheduled", "finished", "unknown"],
-   "cyan": ["started"],
-   "amber": ["canceled", "stopped"],
-   "fault": ["failed"]
-  },
-  "meta": {
-   "label": "meta",
-   "name": "meta job",
-   "source": "cudax simlab/queue.py:79-129",
-   "chalk": ["queued", "waiting_for_gpu", "finished"],
-   "cyan": ["running"],
-   "amber": ["cancelled"],
-   "fault": ["failed"]
-  },
-  "run": {
-   "label": "run",
-   "name": "golden run",
-   "source": "aces_engineering/golden/__init__.py:59-62",
-   "chalk": ["done"],
-   "cyan": ["running"],
-   "amber": ["interrupted"],
-   "fault": ["error"]
-  },
-  "case": {
-   "label": "case",
-   "name": "golden case/design",
-   "source": "aces_engineering/golden/__init__.py:50-62",
-   "chalk": ["FINISHED", "NOT_RUN"],
-   "cyan": [],
-   "amber": [],
-   "fault": ["FAILED"]
-  },
-  "cad": {
-   "label": "cad",
-   "name": "CAD run",
-   "source": "aces_cad/store.py:481-494",
-   "chalk": ["ok"],
-   "cyan": ["running"],
-   "amber": [],
-   "fault": ["error", "unreadable"]
-  },
-  "endpoint": {
-   "label": "endpoint",
-   "name": "rig endpoint classification",
-   "source": "ui-spec-full.md 3.4 and 4.4 (computed by the console backend)",
-   "chalk": ["stopped by mode <mode> (by design)"],
-   "cyan": ["reachable"],
-   "amber": ["transition"],
-   "fault": ["unreachable (not explained by mode)"]
-  },
-  "registry": {
-   "label": "registry",
-   "name": "solver registry validation",
-   "source": "ui-spec-full.md 3.6 (cudax simlab/solvers.json validation.status)",
-   "chalk": ["pass", "not recorded"],
-   "cyan": [],
-   "amber": [],
-   "fault": ["fail"]
+  "vocabularies": {
+    "console": {
+      "label": "console",
+      "name": "console case",
+      "source": "cudax simlab/console/app.py:161-175",
+      "chalk": [
+        "PENDING",
+        "FINISHED"
+      ],
+      "cyan": [
+        "RUNNING"
+      ],
+      "amber": [
+        "STALE"
+      ],
+      "fault": [
+        "FAILED"
+      ]
+    },
+    "rq": {
+      "label": "rq",
+      "name": "rq job",
+      "source": "cudax simlab/queue.py:185-201",
+      "chalk": [
+        "queued",
+        "deferred",
+        "scheduled",
+        "finished",
+        "unknown"
+      ],
+      "cyan": [
+        "started"
+      ],
+      "amber": [
+        "canceled",
+        "stopped"
+      ],
+      "fault": [
+        "failed"
+      ]
+    },
+    "meta": {
+      "label": "meta",
+      "name": "meta job",
+      "source": "cudax simlab/queue.py:79-129",
+      "chalk": [
+        "queued",
+        "waiting_for_gpu",
+        "finished"
+      ],
+      "cyan": [
+        "running"
+      ],
+      "amber": [
+        "cancelled"
+      ],
+      "fault": [
+        "failed"
+      ]
+    },
+    "run": {
+      "label": "run",
+      "name": "golden run",
+      "source": "aces_engineering/golden/__init__.py:59-62",
+      "chalk": [
+        "done"
+      ],
+      "cyan": [
+        "running"
+      ],
+      "amber": [
+        "interrupted"
+      ],
+      "fault": [
+        "error"
+      ]
+    },
+    "case": {
+      "label": "case",
+      "name": "golden case/design",
+      "source": "aces_engineering/golden/__init__.py:50-62",
+      "chalk": [
+        "FINISHED",
+        "NOT_RUN"
+      ],
+      "cyan": [],
+      "amber": [],
+      "fault": [
+        "FAILED"
+      ]
+    },
+    "cad": {
+      "label": "cad",
+      "name": "CAD run",
+      "source": "aces_cad/store.py:481-494",
+      "chalk": [
+        "ok"
+      ],
+      "cyan": [
+        "running"
+      ],
+      "amber": [],
+      "fault": [
+        "error",
+        "unreadable"
+      ]
+    },
+    "endpoint": {
+      "label": "endpoint",
+      "name": "rig endpoint classification",
+      "source": "ui-spec-full.md 3.4 and 4.4 (computed by the console backend)",
+      "chalk": [
+        "stopped by mode <mode> (by design)"
+      ],
+      "cyan": [
+        "reachable"
+      ],
+      "amber": [
+        "transition"
+      ],
+      "fault": [
+        "unreachable (not explained by mode)"
+      ]
+    },
+    "registry": {
+      "label": "registry",
+      "name": "solver registry validation",
+      "source": "ui-spec-full.md 3.6 (cudax simlab/solvers.json validation.status)",
+      "chalk": [
+        "pass",
+        "not recorded"
+      ],
+      "cyan": [],
+      "amber": [],
+      "fault": [
+        "fail"
+      ]
+    },
+    "mc": {
+      "label": "mc",
+      "name": "Mission Control (agent-reported)",
+      "source": "GRID CONTROL /api/mc/trpc runs.list, missions.list, missions.get (agent-reported, never compute truth)",
+      "chalk": [
+        "succeeded",
+        "done",
+        "cancelled",
+        "pending",
+        "passed",
+        "none",
+        "enabled",
+        "disabled"
+      ],
+      "cyan": [
+        "running"
+      ],
+      "amber": [
+        "queued",
+        "planning",
+        "planned",
+        "review"
+      ],
+      "fault": [
+        "failed",
+        "exhausted",
+        "error"
+      ]
+    }
   }
- }
 }
