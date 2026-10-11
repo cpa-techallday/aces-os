@@ -66,7 +66,7 @@ class JobsTest(unittest.TestCase):
 
     def test_golden_demo_run_streams_and_returns_the_result(self):
         n0 = len(ledger_entries())
-        status, _, body = self.c.post("/api/golden/run", {"demo": "root-mount", "confirm": "golden-demo", "options": {"n": 10, "device": "cpu"}})
+        status, _, body = self.c.post("/api/golden/run", {"demo": "root-mount", "confirm": "golden-demo", "options": {"n": 10, "device": "cpu", "lane": "none"}})
         self.assertEqual(status, 202, body)
         job = wait_job(self.c, body["data"]["job"])
         self.assertEqual((job["status"], job["exit"], job["result_run_id"]), ("done", 0, "20261010T102210Z-bc7391"))
@@ -74,6 +74,7 @@ class JobsTest(unittest.TestCase):
         texts = [l["text"] for l in full["data"]["line_items"]]
         self.assertIn("fake_golden: stand-in progress 3/3 (verify)", texts)
         self.assertIn("-n", full["data"]["argv"])
+        self.assertEqual(full["data"]["argv"][full["data"]["argv"].index("--lane") + 1], "none", "lane none keeps the run off the rig")
         rows = [r for r in ledger_entries()[n0:] if r["kind"] == "console.golden.run"]
         self.assertEqual(len(rows), 1)
         self.assertEqual((rows[0]["payload"]["project"], rows[0]["payload"]["demo"]), ("golden-demo", "root-mount"))
@@ -86,6 +87,7 @@ class JobsTest(unittest.TestCase):
                  ({"demo": "rocket", "confirm": "golden-demo"}, 400, "bad-request"),
                  ({"demo": "root-mount", "confirm": "golden-demo", "options": {"n": 1}}, 400, "bad-request"),
                  ({"demo": "root-mount", "confirm": "golden-demo", "options": {"shell": "rm"}}, 400, "bad-request"),
+                 ({"demo": "root-mount", "confirm": "golden-demo", "options": {"lane": "Bad Lane;"}}, 400, "bad-request"),
                  ({"project": "no-such", "confirm": "no-such"}, 404, "not-found"),
                  ({"project": CAD_PROJECT, "confirm": CAD_PROJECT}, 409, "no-spec"),
                  ({"project": CAD_PROJECT, "step": "../x.step", "confirm": CAD_PROJECT}, 400, "bad-request")]

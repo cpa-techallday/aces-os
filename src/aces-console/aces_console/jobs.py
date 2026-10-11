@@ -245,6 +245,8 @@ def _golden_args(options: Any) -> list[str]:
         raise ValueError("options must be an object")
     args: list[str] = []
     for key, value in options.items():
+        if key == "lane":
+            continue  # validated and appended by h_golden_run (none, or a lane name)
         spec = GOLDEN_OPTS.get(key)
         if spec is None:
             raise ValueError(f"unknown option {key}")

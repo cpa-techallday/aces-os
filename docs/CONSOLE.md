@@ -155,7 +155,7 @@ console's GET-only `/gc` read proxy on the rig (which forwards with the rig's ow
 Writes (chats, missions, approvals, uploads, the red-team VM, the auto-switch, the mode switch) need the token on this
 desktop: `~/.config/aces/gridcontrol.env` with `ACES_GC_TOKEN=...`, mode 0600.
 
-### Golden runs and CAD actions (0.1.0-3)
+### Golden runs and CAD actions (0.1.0-4)
 
 The Evidence plate starts golden runs (a project's `golden/spec.json`, the built-in demo, or a STEP file made into a
 new project with `aces golden init`), with every `aces golden run` option, confirmed by typing the project name;
