@@ -25,8 +25,10 @@ experiment"|"unknown case"}) pass through unchanged. No token is ever logged, ec
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import posixpath
+import time
 import re
 import socket
 import threading
@@ -34,6 +36,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any
+
+from aces import ledger
 
 from . import __version__, cache as cache_mod, httpc, secrets as tokens, server
 from .server import Request, Response, envelope, error, ok
@@ -462,9 +466,13 @@ def runs_entry(app: server.App, experiment_id: str, max_results: int) -> cache_m
                 continue
             info = r["info"]
             rid = info.get("run_id") or info.get("run_uuid")
+            data = r.get("data") or {}
+            tags = {t.get("key"): t.get("value") for t in data.get("tags") or [] if isinstance(t, dict)}
             rows.append({"info": info, "ui_url": mlflow_ui_url(app, info.get("experiment_id"), str(rid)) if rid else None,
-                         "n_metrics": len((r.get("data") or {}).get("metrics") or []),
-                         "n_params": len((r.get("data") or {}).get("params") or [])})
+                         "n_metrics": len(data.get("metrics") or []), "n_params": len(data.get("params") or []),
+                         "run_name": info.get("run_name") or tags.get("mlflow.runName"),
+                         "metrics": [m for m in data.get("metrics") or [] if isinstance(m, dict)][:60],
+                         "params": [m for m in data.get("params") or [] if isinstance(m, dict)][:60]})
         return True, {"experiment_id": experiment_id, "runs": rows, "n": len(rows), "max_results": max_results,
                       "page_more": bool(obj.get("next_page_token"))}, None
 
@@ -818,6 +826,180 @@ def h_mlflow_runs(req: Request) -> Response:
     return envelope(runs_entry(req.app, exp, n))
 
 
+# --- SIMLAB actions: every simlab-mcp tool, from the console (human POSTs; the writes ledgered) ---------------------------------
+
+WRITE_TOOLS = frozenset({"sim_submit", "sim_sweep", "sim_cancel", "sim_put_spec", "sim_put_file", "sim_report",
+                         "sim_report_files", "sim_evidence"})
+TOOL_NAME_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
+
+
+def fetch_tools(app: server.App):
+    url = mcp_url(app)
+    if not url:
+        return False, None, "not configured: server.simlab_mcp is unset"
+    token, source = tokens.simlab_token(warn=app.log)
+    client = McpClient(url, token)
+    try:
+        client.initialize()
+        res = client.request("tools/list") or {}
+    except McpError as e:
+        return False, None, f"simlab-mcp {e.kind}: {e}"
+    rows = []
+    for t in (res.get("tools") if isinstance(res, dict) else None) or []:
+        if isinstance(t, dict) and isinstance(t.get("name"), str):
+            rows.append({"name": t["name"], "description": str(t.get("description") or "")[:4000],
+                         "input_schema": t.get("inputSchema") if isinstance(t.get("inputSchema"), dict) else {},
+                         "write": t["name"] in WRITE_TOOLS})
+    return True, {"tools": rows, "n": len(rows), "write_tools": sorted(WRITE_TOOLS), "token_source": source,
+                  "note": "the write tools change the rig's queue or files: confirmed by name, ledgered as console.sim.tool"}, None
+
+
+def _tools_entry(app: server.App) -> cache_mod.Entry:
+    return app.cache.get("sim.tools", 300.0, lambda: fetch_tools(app), source=f"{mcp_url(app)} tools/list")
+
+
+def h_tools(req: Request) -> Response:
+    return envelope(_tools_entry(req.app))
+
+
+def _experiment_of(result: Any) -> str | None:
+    if isinstance(result, dict):
+        for k in ("experiment_id", "experiment", "eid", "key"):
+            v = result.get(k)
+            if isinstance(v, (str, int)) and str(v):
+                return str(v)[:200]
+    return None
+
+
+def h_tool_call(req: Request) -> Response:
+    app = req.app
+    name = req.params.get("name") or ""
+    body = req.json or {}
+    args = body.get("arguments") if body.get("arguments") is not None else {}
+    if not TOOL_NAME_RE.match(name):
+        return error(400, "the tool name is not a simlab-mcp tool name", "bad-request")
+    if not isinstance(args, dict):
+        return error(400, "arguments must be a JSON object", "bad-request")
+    entry = _tools_entry(app)
+    if entry.data is None:
+        return error(502, f"simlab-mcp tools/list failed: {entry.error}", "upstream")
+    if name not in {t["name"] for t in entry.data.get("tools") or []}:
+        return error(404, f"simlab-mcp lists no tool named {name}", "not-found")
+    write = name in WRITE_TOOLS
+    if write and body.get("confirm") != name:
+        return error(400, f"confirm must be the tool name {name} (a write tool)", "confirm-mismatch")
+    t0 = time.time()
+    okk, result, err, info = mcp_call(app, name, args)
+    n = None
+    if write:
+        payload = {"tool": name, "arg_keys": sorted(args)[:40],
+                   "args_sha256": hashlib.sha256(json.dumps(args, sort_keys=True, default=str).encode("utf-8")).hexdigest(),
+                   "ok": okk, "error": err, "experiment": _experiment_of(result) if okk else None}
+        try:
+            n, _ = ledger.record("console.sim.tool", payload)
+        except (ValueError, TimeoutError, OSError, SystemExit) as e:
+            app.log(f"ledger write of console.sim.tool failed: {e}"[:300])
+        for key in ("sim.experiments", "sim.summary"):
+            app.cache.invalidate(key)
+    if not okk:
+        return error(502, err or f"simlab-mcp {name} failed", "upstream")
+    return ok({"tool": name, "write": write, "result": result, "seconds": round(time.time() - t0, 2),
+               "server": info.get("server"), "token_source": info.get("token_source"), "ledger_n": n})
+
+
+# --- MLflow browser: metric history, artifact listing and artifact bytes (read only) ------------------------------------------
+
+def _mlflow_path_arg(v: Any, required: bool) -> str | None:
+    if v is None or v == "":
+        if required:
+            raise ValueError("path is required")
+        return None
+    if not isinstance(v, str) or len(v) > 500 or v.startswith("/") or "\\" in v or ".." in v.split("/"):
+        raise ValueError("path must be a relative artifact path")
+    return v
+
+
+def h_mlflow_history(req: Request) -> Response:
+    run_id, key = req.q("run_id") or "", req.q("key")
+    if not RUN_ID_RE.match(run_id):
+        return error(400, "run_id must be 32 hex characters", "bad-request")
+    if not isinstance(key, str) or not key or len(key) > 250:
+        return error(400, "key must be a metric key", "bad-request")
+    app = req.app
+    path = "/api/2.0/mlflow/metrics/get-history?" + urllib.parse.urlencode(
+        {"run_id": run_id, "metric_key": key, "max_results": 25000})
+
+    def fetch():
+        status, obj, err, text = _mlflow_get(app, path)
+        if err:
+            return False, None, _mlflow_error(status, obj, err, text)
+        pts = [{"step": m.get("step"), "value": m.get("value"), "timestamp": m.get("timestamp")}
+               for m in (obj.get("metrics") if isinstance(obj, dict) else None) or [] if isinstance(m, dict)]
+        return True, {"run_id": run_id, "key": key, "points": pts[:25000], "n": len(pts)}, None
+    return envelope(app.cache.get(f"mlflow.history:{run_id}:{key}", 30.0, fetch,
+                                  source=f"{mlflow_base(app)}/api/2.0/mlflow/metrics/get-history"))
+
+
+def h_mlflow_artifacts(req: Request) -> Response:
+    run_id = req.q("run_id") or ""
+    if not RUN_ID_RE.match(run_id):
+        return error(400, "run_id must be 32 hex characters", "bad-request")
+    try:
+        rel = _mlflow_path_arg(req.q("path"), required=False)
+    except ValueError as e:
+        return error(400, str(e), "bad-request")
+    app = req.app
+    q = {"run_id": run_id, **({"path": rel} if rel else {})}
+
+    def fetch():
+        status, obj, err, text = _mlflow_get(app, "/api/2.0/mlflow/artifacts/list?" + urllib.parse.urlencode(q))
+        if err:
+            return False, None, _mlflow_error(status, obj, err, text)
+        files = [f for f in (obj.get("files") if isinstance(obj, dict) else None) or [] if isinstance(f, dict)]
+        return True, {"run_id": run_id, "path": rel, "root_uri": obj.get("root_uri") if isinstance(obj, dict) else None,
+                      "files": files, "n": len(files)}, None
+    return envelope(app.cache.get(f"mlflow.artifacts:{run_id}:{rel or ''}", 30.0, fetch,
+                                  source=f"{mlflow_base(app)}/api/2.0/mlflow/artifacts/list"))
+
+
+def h_mlflow_artifact(req: Request) -> Response:
+    run_id = req.q("run_id") or ""
+    if not RUN_ID_RE.match(run_id):
+        return error(400, "run_id must be 32 hex characters", "bad-request")
+    try:
+        rel = _mlflow_path_arg(req.q("path"), required=True)
+    except ValueError as e:
+        return error(400, str(e), "bad-request")
+    base = mlflow_base(req.app)
+    if not base:
+        return error(503, "not configured: server.mlflow is unset", "not-configured")
+    url = base + "/get-artifact?" + urllib.parse.urlencode({"path": rel, "run_uuid": run_id})
+    try:
+        status, hdrs, it = httpc.stream(url, FILE_TIMEOUT_S)
+    except httpc.HttpcError as exc:
+        return error(502, f"MLflow unreachable at {base}: {_reason(str(exc))}", "upstream")
+    chunks, total = [], 0
+    for chunk in it:
+        total += len(chunk)
+        if total > FILE_CAP:
+            return error(413, f"the artifact exceeds the console file cap of {FILE_CAP} bytes", "too-large")
+        chunks.append(chunk)
+    body = b"".join(chunks)
+    if status != 200:
+        text = body[:300].decode("utf-8", "replace").strip()
+        return error(404 if status == 404 else 502, text or f"HTTP {status}", "not-found" if status == 404 else "upstream",
+                     upstream_status=status)
+    ctype = ({k.lower(): v for k, v in hdrs.items()}.get("content-type") or "application/octet-stream").split(";", 1)[0].strip().lower()
+    inline = ctype.startswith("image/") or ctype in ("text/plain", "application/json", "text/csv", "application/pdf")
+    if ctype.startswith("text/") or ctype == "application/json":
+        ctype += "; charset=utf-8"
+    name = re.sub(r"[^A-Za-z0-9._-]", "_", posixpath.basename(rel))[:120] or "artifact"
+    headers = {"Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff",
+               "Content-Disposition": f'{"inline" if inline else "attachment"}; filename="{name}"',
+               "Cache-Control": "private, max-age=60"}
+    return Response(status=200, body=body, content_type=ctype, headers=headers)
+
+
 # --- install --------------------------------------------------------------------------------------------------------------
 
 def install(register) -> None:
@@ -855,3 +1037,9 @@ def install(register) -> None:
     register("GET", "/api/mlflow/experiments", h_mlflow_experiments)
     register("GET", "/api/mlflow/run/{run_id}", h_mlflow_run)
     register("GET", "/api/mlflow/runs", h_mlflow_runs)
+    register("GET", "/api/mlflow/metric-history", h_mlflow_history)
+    register("GET", "/api/mlflow/artifacts", h_mlflow_artifacts)
+    register("GET", "/api/mlflow/artifact", h_mlflow_artifact)
+    register("GET", "/api/sim/tools", h_tools)
+    register("POST", "/api/sim/tool/{name}", h_tool_call)
+    server.allow_body("/api/sim/tool/sim_put_file", 12 * 1024 * 1024)

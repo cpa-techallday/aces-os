@@ -4,7 +4,7 @@
 // installed packages and desktop entries with Open, and Stop console. Bindings: /api/rig/modes, /api/rig/switch,
 // POST /api/rig/switch/prepare, POST /api/rig/switch, /api/rig/decisions, /api/doctor, POST /api/doctor/run,
 // /api/policy, /api/system/*, /api/config; stamps rig.status, rig.switch, switch.outcome, rig.modes, fabric.manifest.
-const PATHS = { modes: "/api/rig/modes", config: "/api/config", switch: "/api/rig/switch", decisions: "/api/rig/decisions", doctor: "/api/doctor", policy: "/api/policy", packages: "/api/system/packages", entries: "/api/system/entries", links: "/api/system/links" };
+const PATHS = { modes: "/api/rig/modes", config: "/api/config", switch: "/api/rig/switch", decisions: "/api/rig/decisions", doctor: "/api/doctor", policy: "/api/policy", packages: "/api/system/packages", entries: "/api/system/entries", links: "/api/system/links", redteam: "/api/rig/redteam", downloads: "/api/rig/downloads" };
 let R = null;
 
 export async function mount(root, ctx) {
@@ -12,13 +12,16 @@ export async function mount(root, ctx) {
   R = {
     ctx, root, res: {}, stamps: {}, modes: null, config: null, switch: null, decisions: null, doctor: null, policy: null, packages: null, entries: null, links: null,
     target: ctx.params.get("mode") || "", session: [], outcomes: [], prepare: null, dialog: null, countdown: null, expired: false, busy: false,
-    doctorBusy: false, doctorPoll: null, openResult: {}, stopResult: null, dead: false,
-    b: { switch: el("div"), timeline: el("div"), decisions: el("div"), doctor: el("div"), policy: el("div"), links: el("div"), packages: el("div"), entries: el("div"), stop: el("div") },
+    doctorBusy: false, doctorPoll: null, openResult: {}, stopResult: null, autoResult: null, rtResult: null, redteam: null, downloads: null, dead: false,
+    b: { switch: el("div"), timeline: el("div"), decisions: el("div"), auto: el("div"), redteam: el("div"), downloads: el("div"), doctor: el("div"), policy: el("div"), links: el("div"), packages: el("div"), entries: el("div"), stop: el("div") },
   };
   root.append(
     block("mode switch · a human act, confirmed here", [R.b.switch], { id: "ops-switch" }),
     block("switch engine · GRID CONTROL /api/switch/status", [R.b.timeline], { id: "ops-timeline" }),
     block("decisions · GRID CONTROL decision log", [R.b.decisions], { id: "ops-decisions" }),
+    block("auto-switch · GRID CONTROL /api/auto", [R.b.auto], { id: "ops-auto" }),
+    block("red team · GRID CONTROL /api/redteam", [R.b.redteam], { id: "ops-redteam" }),
+    block("model staging · GRID CONTROL downloads-status.json", [R.b.downloads], { span2: true, id: "ops-downloads" }),
     block("doctor · aces doctor, verbatim", [R.b.doctor], { id: "ops-doctor" }),
     block("policy · aces policy", [R.b.policy], { id: "ops-policy" }),
     block("packages · pacman -Q aces-* omarchy*", [R.b.packages], { id: "ops-packages" }),
@@ -26,7 +29,9 @@ export async function mount(root, ctx) {
     block("desktop entries · owned by aces-* packages", [R.b.entries], { span2: true, id: "ops-entries" }),
     block("stop console", [R.b.stop], { span2: true, id: "ops-stop" }),
   );
-  ctx.events.on("rig.status", () => { renderSwitch(); });
+  ctx.events.on("rig.status", () => { renderSwitch(); renderAuto(); });
+  ctx.events.on("rig.redteam", (st) => { if (st.changed || st.ok === false) refetch("redteam").then(renderRedteam); });
+  ctx.events.on("rig.downloads", (st) => { if (st.changed || st.ok === false) refetch("downloads").then(renderDownloads); });
   ctx.events.on("rig.switch", (st) => { R.stamps.switch = st; if (st.payload) R.switch = st.payload; renderTimeline(); renderSwitch(); });
   ctx.events.on("fabric.manifest", () => renderSwitch());
   ctx.events.on("rig.modes", (st) => { R.stamps.modes = st; if (st.ok !== false && st.payload && typeof st.payload === "object") R.modes = "gridcontrol_modes" in st.payload ? { ...(R.modes || {}), ...st.payload } : { ...(R.modes || {}), gridcontrol_modes: st.payload }; renderSwitch(); }); // the stamp inlines GRID CONTROL's mode table only
@@ -57,7 +62,78 @@ async function refetch(name) {
   if (r.ok) { if (r.data !== null && r.data !== undefined) R[name] = r.data; else if (!r.meta || r.meta.stale !== true) R[name] = null; }
 }
 
-function renderAll() { renderSwitch(); renderTimeline(); renderDecisions(); renderDoctor(); renderPolicy(); renderLinks(); renderPackages(); renderEntries(); renderStop(); }
+function renderAll() { renderSwitch(); renderTimeline(); renderDecisions(); renderAuto(); renderRedteam(); renderDownloads(); renderDoctor(); renderPolicy(); renderLinks(); renderPackages(); renderEntries(); renderStop(); }
+
+// ---------- auto-switch, red team, model staging (GRID CONTROL rev B's controls, here; every write typed, ledgered) ----------
+function typedAction(placeholder, label, words, run, result) {
+  const { dom } = R.ctx; const { el, button } = dom;
+  const input = el("input.type.short", { type: "text", autocomplete: "off", spellcheck: "false", placeholder, "aria-label": placeholder });
+  const btn = button(label, { cls: "btn", disabled: true, onclick: async () => { btn.disabled = true; await run(input.value); } });
+  input.addEventListener("input", () => { btn.disabled = input.value !== words; });
+  return el("div.actrow", [input, btn, result ? el("span.result" + (result.cls ? "." + result.cls : ""), { text: result.text }) : null]);
+}
+function actionResult(r, what) {
+  return r.ok ? { cls: "", text: `${what}: accepted (ledger #${r.data && r.data.ledger_n !== null && r.data.ledger_n !== undefined ? r.data.ledger_n : "not written"})` }
+    : { cls: r.status === 503 || r.status === 400 ? "act" : "fault", text: `${what}: ${r.error} (HTTP ${r.status}${r.code ? ", " + r.code : ""})` };
+}
+function renderAuto() {
+  const { dom } = R.ctx; const { el, clear, note } = dom;
+  const box = R.b.auto; clear(box);
+  const st = R.ctx.stamp.get().status; const status = st ? st.payload : null;
+  const on = status ? status.auto_enabled === true : null;
+  box.append(el("div.line", [el("span.k", { text: "auto-switch" }), el("b" + (on ? ".ink-amber" : ""), { text: on === null ? "not reported" : on ? "on: GRID CONTROL switches modes by itself" : "off: modes change only when a person switches them" })]));
+  if (on === null) { box.append(note("auto-switch state unknown", "no rig status received yet")); return; }
+  const words = on ? "disable auto-switch" : "enable auto-switch";
+  box.append(el("div.prose", { text: on ? "Turning it off returns mode switching to people only." : "Turning it on lets GRID CONTROL change the rig's mode without a person; the switch above is refused while it is on. Type the words to enable the button." }));
+  box.append(typedAction(`type ${words}`, on ? "Turn auto-switch off" : "Turn auto-switch on", words, async (typed) => {
+    const r = await R.ctx.api.post("/api/rig/auto", { enabled: !on, confirm: typed });
+    if (!R || R.dead) return;
+    R.autoResult = actionResult(r, on ? "auto-switch off" : "auto-switch on"); renderAuto();
+  }, R.autoResult));
+}
+function renderRedteam() {
+  const { dom, format } = R.ctx; const { el, clear, absence, note, kv } = dom;
+  const box = R.b.redteam; clear(box);
+  const abs = absence(R.res.redteam, "red team status");
+  if (abs) box.append(abs);
+  const s = R.redteam;
+  if (!s) { if (!abs) box.append(note("red team status not loaded", "no reply yet")); return; }
+  const vms = Array.isArray(s.vms) ? s.vms : [];
+  const iso = s.iso || null;
+  box.append(kv([["mission VM", vms.length ? vms.join(", ") : "no VM", vms.length ? "ink-cyan" : null], ["Tor transproxy", s.tor_transproxy === true ? "live :9040" : s.tor_transproxy === false ? "down" : "not reported", s.tor_transproxy === false ? "ink-fault" : null],
+    ["ik-redteam model", s.ik_redteam], ["ISO", iso ? (iso.bytes >= iso.target_bytes ? "ready" : `${format.bytes(iso.bytes)} of ${format.bytes(iso.target_bytes)} (${s.iso_unit || "unit not reported"})`) : "not reported"], ["read", s.via === "proxy" ? "through the rig's read proxy" : "with this desktop's token"]]));
+  if (vms.length) {
+    box.append(el("div.prose", { text: "Ending the mission destroys the VM and everything written in it. Type END MISSION to enable the button." }));
+    box.append(typedAction("type END MISSION", "End mission (destroy the VM)", "END MISSION", async (typed) => {
+      const r = await R.ctx.api.post("/api/rig/redteam/vm", { action: "down", confirm: typed });
+      if (!R || R.dead) return;
+      R.rtResult = actionResult(r, "end mission"); renderRedteam(); refetch("redteam").then(renderRedteam);
+    }, R.rtResult));
+  } else {
+    box.append(el("div.prose", { text: "Starting boots the BlackArch mission VM with Tor-only egress; handover requires IsTor verification. Type start mission vm to enable the button." }));
+    box.append(typedAction("type start mission vm", "Start the mission VM", "start mission vm", async (typed) => {
+      const r = await R.ctx.api.post("/api/rig/redteam/vm", { action: "up", confirm: typed });
+      if (!R || R.dead) return;
+      R.rtResult = actionResult(r, "start mission VM"); renderRedteam(); refetch("redteam").then(renderRedteam);
+    }, R.rtResult));
+  }
+}
+function renderDownloads() {
+  const { dom, format } = R.ctx; const { el, clear, absence, note, table } = dom;
+  const box = R.b.downloads; clear(box);
+  const abs = absence(R.res.downloads, "model staging");
+  if (abs) box.append(abs);
+  const d = R.downloads;
+  if (!d) { if (!abs) box.append(note("model staging not loaded", "no reply yet")); return; }
+  const items = Array.isArray(d.items) ? d.items : [];
+  box.append(el("div.line", [el("span.k", { text: "progress" }), el("b", { text: `${d.completed ?? "?"} of ${d.total ?? "?"} complete` }), el("span.k", { text: "current" }), el("b", { text: d.current || "none" }), el("span.k", { text: "updated" }), el("b", { text: d.updated ? format.utc(d.updated) : "not reported" })]));
+  box.append(table([
+    { th: "repository", key: "repo", cls: "nm" },
+    { th: "pattern", key: "pattern" },
+    { th: "state", render: (i) => (i.done ? el("span.state.ink-chalk", { text: "done" }) : el("span.state.ink-amber", { text: "queued" })) },
+    { th: "notes", key: "notes", cls: "body" },
+  ], items, { empty: "no items in downloads-status.json", caption: "model staging", cls: "wrapnames" }));
+}
 
 // ---------- gates of spec 4.5: every one printed with its state and reason ----------
 function gates() {
@@ -309,7 +385,7 @@ function renderLinks() {
     { th: "link", key: "label", cls: "nm" },
     { th: "url", render: (l) => [l.url || "not reported", l.note ? el("span.sub", { text: l.note }) : null] },
     { th: "reach", render: (l) => l.reach || "not classified" },
-    { th: "open", render: (l) => openButton(l.id, !!l.openable, l.note) },
+    { th: "open", render: (l) => (l.replaced_by ? el("span.dim", { text: `in this console: ${l.replaced_by}` }) : openButton(l.id, !!l.openable, l.note)) },
   ], rows, { empty: "no links configured", caption: "configured and reported links", cls: "wrapnames" }));
 }
 

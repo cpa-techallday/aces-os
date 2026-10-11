@@ -45,6 +45,12 @@ from . import poller as poller_mod, safefs, secrets, sse
 
 LOOPBACK_PEERS = frozenset({"127.0.0.1", "::1", "::ffff:127.0.0.1"})
 BODY_CAP = 64 * 1024
+BODY_CAPS: dict[str, int] = {}  # exact paths allowed a larger JSON body (uploads), set by the modules at install
+
+
+def allow_body(path: str, cap: int) -> None:
+    """Let one exact route path take a JSON body of up to `cap` bytes (base64 uploads); every other route keeps 64 KiB."""
+    BODY_CAPS[path] = int(cap)
 INTENT_HEADER = "X-ACES-Intent"
 INTENT_HUMAN = "human"
 CSP_TEMPLATE = ("default-src 'self'; script-src 'self'{hash}; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
@@ -53,7 +59,7 @@ CSP_TEMPLATE = ("default-src 'self'; script-src 'self'{hash}; style-src 'self' '
 IMPORTMAP_RE = re.compile(r"<script\s+type=([\"']?)importmap\1[^>]*>(.*?)</script>", re.S | re.I)
 VOCAB_PATH = Path(__file__).resolve().parent / "vocab.json"
 STREAMED = object()  # Response.body sentinel: the handler already wrote the stream
-MODULES = ("rig", "sim", "records", "ledgers", "system")
+MODULES = ("rig", "sim", "records", "ledgers", "system", "mc")
 FIXTURE_BASES = ("grid_control", "rig_state", "simlab_mcp", "simlab_console", "mlflow")
 
 Route = namedtuple("Route", "method pattern regex handler")
@@ -326,11 +332,12 @@ class App:
             length = int(handler.headers.get("Content-Length") or 0)
         except ValueError:
             length = 0
-        if length > BODY_CAP:
+        cap = BODY_CAPS.get(path, BODY_CAP)
+        if length > cap:
             if length <= 8 * 1024 * 1024:
                 handler.rfile.read(length)  # drain, so the client reads the 413 instead of a reset
             handler.close_connection = True
-            return error(413, f"request body larger than {BODY_CAP // 1024} KiB", "too-large")
+            return error(413, f"request body larger than {cap // 1024} KiB", "too-large")
         raw = handler.rfile.read(length) if length > 0 else b""
         body: Any = None
         if method == "POST":

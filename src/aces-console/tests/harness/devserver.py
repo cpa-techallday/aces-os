@@ -700,7 +700,7 @@ class Handler(BaseHTTPRequestHandler):
             hit = records_routes.handle_get(self, path, query)
             if hit is not None:
                 return hit
-        if path in ("/api/golden/runs", "/api/ledger/simlab") or path.startswith(("/api/golden/", "/api/cad/", "/api/sim/", "/api/mlflow/")):
+        if path in ("/api/golden/runs", "/api/ledger/simlab") or path.startswith(("/api/golden/", "/api/cad/", "/api/sim/", "/api/mlflow/", "/api/mc/", "/api/rig/redteam", "/api/rig/downloads")):
             return missing(path, 10, "this route belongs to Builder B's backend; the fixture devserver serves only what Builder C's plates call")
         return error(404, "no such route in the fixture devserver", "not-found", source=path)
 

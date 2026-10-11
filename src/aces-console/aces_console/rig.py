@@ -286,12 +286,39 @@ def fetch_switch(app: server.App):
         return False, None, str(e)
 
 
+GC_PROXY_NOTE = "through the SIMLAB console's GET-only /gc read proxy on the rig (no GRID CONTROL token on this desktop)"
+
+
+def gc_read(app: server.App, path: str, timeout: float | None = None) -> tuple[int, Any, str | None, str]:
+    """GET a token-protected GRID CONTROL path: with the token held on this desktop, directly; without it, through the
+    SIMLAB console's GET-only /gc proxy, which forwards with the rig's own token (cudax simlab/console/app.py). Returns
+    (status, obj, error, via) where via is "token" or "proxy"; writes always need the token on this desktop."""
+    timeout = timeout or app.settings.timeout_s
+    token, _ = tokens.gc_token(warn=app.log)
+    base = _gc_base(app)
+    if token and base:
+        status, obj, err = httpc.get_json(base + path, timeout, headers={"x-gc-token": token})
+        return status, obj, (tokens.scrub(err, token) if err else None), "token"
+    cbase = _console_base(app)
+    if not cbase:
+        return 0, None, "not configured: no GRID CONTROL token on this desktop and server.simlab_console is unset", "proxy"
+    status, obj, err = httpc.get_json(cbase + "/gc" + path, timeout)
+    if status == 503:
+        err = "the SIMLAB console's /gc read proxy is not configured on the rig and this desktop holds no GRID CONTROL token"
+    return status, obj, err, "proxy"
+
+
+def gc_readable(app: server.App) -> bool:
+    return bool((tokens.gc_token()[0] and _gc_base(app)) or _console_base(app))
+
+
 def fetch_decisions(app: server.App):
-    status, obj, err = _gc_get(app, "/api/decisions")
+    status, obj, err, via = gc_read(app, "/api/decisions")
     if err:
         return False, None, err
     rows = obj if isinstance(obj, list) else ([] if obj is None else [obj])
-    return True, {"decisions": rows, "schema": "not interpreted", "n": len(rows)}, None
+    return True, {"decisions": rows, "schema": "not interpreted", "n": len(rows), "via": via,
+                  "via_note": None if via == "token" else GC_PROXY_NOTE}, None
 
 
 def _seed_telemetry(app: server.App, st: RigState) -> None:
@@ -725,13 +752,13 @@ def h_snapshot(req: Request) -> Response:
 
 
 def h_decisions(req: Request) -> Response:
-    token, _ = tokens.gc_token(warn=req.app.log)
-    if not token:
+    if not gc_readable(req.app):
         # an honest absence in the 200 envelope, not a 503: the browser logs every 5xx as a console error and the
         # Ops plate draws meta.error as the reason either way
         resp = ok(None, source="GRID CONTROL /api/decisions")
-        resp.meta.update({"ok": False, "error": "not configured: GRID CONTROL token (ACES_GC_TOKEN, SIMLAB_GC_TOKEN or "
-                                                "~/.config/aces/gridcontrol.env)", "code": "not-configured"})
+        resp.meta.update({"ok": False, "error": "not configured: no GRID CONTROL token (ACES_GC_TOKEN, SIMLAB_GC_TOKEN or "
+                                                "~/.config/aces/gridcontrol.env) and server.simlab_console is unset",
+                          "code": "not-configured"})
         return resp
     return envelope(req.app.hub.get("rig.decisions"))
 
@@ -833,7 +860,7 @@ def install(register) -> None:
     hub.register("rig.snapshot", lambda: fetch_snapshot(app), 30.0, ("fabric", "ops"), inline=False, max_backoff_s=120.0,
                  source=str(app.settings.server.get("rig_state") or "rig_state unset"))
     hub.register("rig.decisions", lambda: fetch_decisions(app), 60.0, ("fabric", "ops"), inline=False,
-                 source=f"{gc}/api/decisions", enabled=lambda: tokens.gc_token()[0] is not None)
+                 source=f"{gc}/api/decisions", enabled=lambda: gc_readable(app))
     hub.register("fabric.manifest", lambda: fetch_manifest(app), 5.0, ("*",), inline=_manifest_inline,
                  source=str(fabric.manifest_path(app.settings.cfg)))
     hub.register("console.health", lambda: fetch_console_health(app), 3.0, ("*",), inline=True, source="console")

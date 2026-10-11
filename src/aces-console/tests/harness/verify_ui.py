@@ -26,7 +26,7 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 VIEWPORTS = [("1440x900", 1440, 900), ("390x844", 390, 844)]
-PLATES = ["fabric", "projects", "pipeline", "solvers", "objects", "evidence", "ops"]
+PLATES = ["fabric", "projects", "pipeline", "solvers", "objects", "evidence", "agents", "ops"]
 
 JS_COLOURS = r"""
 () => {

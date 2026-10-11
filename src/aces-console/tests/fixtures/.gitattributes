@@ -4,3 +4,5 @@
 # Builder B: the record-only golden runs under golden/ (every file hashes to the run's own manifest.sha256) and the
 # desktop simlab evidence ledger are stored byte-exact too; golden/MANIFEST.json carries their provenance.
 golden/** -text
+# the MLflow browser's one artifact capture (2026-10-11), byte-exact like the JSON captures
+*.cvg -text

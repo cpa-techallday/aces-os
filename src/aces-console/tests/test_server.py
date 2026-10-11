@@ -238,12 +238,12 @@ class ServerTest(unittest.TestCase):
     def test_vocab_served(self):
         status, hdrs, body = self.c.get("/vocab.json")
         self.assertEqual(status, 200)
-        self.assertEqual(set(body["vocabularies"]), {"console", "rq", "meta", "run", "case", "cad", "endpoint", "registry"})
+        self.assertEqual(set(body["vocabularies"]), {"console", "rq", "meta", "run", "case", "cad", "endpoint", "registry", "mc"})
         self.assertEqual(body["inks"], ["chalk", "cyan", "amber", "fault"])
         for name, v in body["vocabularies"].items():
             words = v["chalk"] + v["cyan"] + v["amber"] + v["fault"]
             self.assertEqual(len(words), len(set(words)), f"{name}: a word in two inks")
-            self.assertIn(v["label"], ("rq", "meta", "case", "run", "cad", "console", "registry", "endpoint"))
+            self.assertIn(v["label"], ("rq", "meta", "case", "run", "cad", "console", "registry", "endpoint", "mc"))
         self.assertNotIn("green", json.dumps(body["inks"]))
 
     def test_config_reports_token_sources_never_values(self):
@@ -274,8 +274,8 @@ class ServerTest(unittest.TestCase):
         status, _, body = self.c.get("/api/rig/decisions")
         self.assertEqual(status, 200)
         self.assertIsNone(body["data"])
-        self.assertEqual((body["meta"]["ok"], body["meta"]["code"]), (False, "not-configured"))
-        self.assertTrue(body["meta"]["error"].startswith("not configured: GRID CONTROL token"))
+        self.assertEqual(body["meta"]["ok"], False)
+        self.assertTrue(body["meta"]["error"], "the reason is given: no token and the rig's read proxy unreachable")
 
     def test_server_log_has_method_path_status_only(self):
         self.c.get("/api/health?secret=in-query")
@@ -377,7 +377,7 @@ class FixtureManifestTest(unittest.TestCase):
     def test_every_fixture_is_listed_with_its_sha256(self):
         manifest = json.loads((FIXTURES / "MANIFEST.json").read_text(encoding="utf-8"))
         listed = {row["file"]: row for row in manifest}
-        files = sorted(p.name for p in FIXTURES.glob("*.json") if p.name != "MANIFEST.json")
+        files = sorted(p.name for p in FIXTURES.iterdir() if p.is_file() and p.name not in ("MANIFEST.json", ".gitattributes"))
         self.assertEqual(sorted(listed), files)
         for name in files:
             row = listed[name]

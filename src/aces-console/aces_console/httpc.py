@@ -117,6 +117,23 @@ def post_json(url: str, body: Any, timeout: float, headers: dict | None = None) 
     return status, obj, None
 
 
+def post_bytes(url: str, data: bytes, timeout: float, headers: dict | None = None) -> tuple[int, Any, str | None]:
+    """POST raw bytes (an upload) to `url`; (status, parsed JSON reply or None, error or None). Never replayed."""
+    if _FIXTURES is not None:
+        return 0, None, "fixtures mode: uploads are not replayed"
+    hdrs = {"Accept": POST_ACCEPT}
+    hdrs.update(headers or {})
+    status, raw, err = _do("POST", url, data, timeout, hdrs)
+    if status == 0:
+        return 0, None, err
+    obj, derr = decode(raw)
+    if err:
+        return status, obj, err
+    if derr:
+        return status, None, derr
+    return status, obj, None
+
+
 def _iter_body(resp) -> Iterator[bytes]:
     try:
         while True:

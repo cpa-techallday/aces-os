@@ -96,6 +96,16 @@ class FakeSimlabMcp:
                         obj = _load(fake.fixtures_dir / "simlab-whoami.json")
                         self._reply(200, dict(obj, id=rid))
                         return
+                    if name == "sim_list_experiments":  # captured 2026-10-11 (aces-console 0.1.0 SIMLAB actions)
+                        obj = _load(fake.fixtures_dir / "simlab-list-experiments.json")
+                        self._reply(200, dict(obj, id=rid))
+                        return
+                    if name == "sim_cancel":  # a write tool: a stand-in reply, never a capture (nothing is cancelled)
+                        args = (body.get("params") or {}).get("arguments") or {}
+                        self._reply(200, {"jsonrpc": "2.0", "id": rid, "result": {"structuredContent": {"result": {
+                            "experiment_id": args.get("experiment_id"), "cancelled": 0, "note": "fake_simlab_mcp stand-in"}},
+                            "content": [], "isError": False}})
+                        return
                     self._reply(200, {"jsonrpc": "2.0", "id": rid, "error": {"code": -32601,
                                                                             "message": f"fake_simlab_mcp: tool {name} has no 2026-10-11 capture and is not replayed"}})
                     return

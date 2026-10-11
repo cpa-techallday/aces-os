@@ -56,6 +56,17 @@ token-in-URL pattern (GC index.html:686-688); any default status such as `"sim"`
 - Nothing fabricated or sampled: fixtures are the captures of 2026-10-11 with their provenance in `MANIFEST.json`;
   absence is drawn with its reason; every status word carries its vocabulary label; no green ink.
 
+## Amendment, 2026-10-11 (later the same day)
+
+Aaron rejected the first cut: "one single unified UI with everything accessible", not GRID CONTROL, the SIMLAB
+console and MLflow beside it. The v1 deferrals that kept those pages necessary are reversed: the console carries
+Mission Control (an Agents plate), every simlab-mcp tool including submit, sweep and cancel, an MLflow browser, the
+auto-switch, the red-team VM and model staging, all as human POSTs that are ledgered, and it no longer opens the three
+replaced pages. GRID CONTROL stays the rig's switch engine and Mission Control's server; the SIMLAB console stays the
+rig's data plane (its `/gc` read proxy carries GRID CONTROL reads when this desktop holds no token); MLflow stays the
+tracking server. Only their pages are retired. Approvals of consequential actions stay with the unbuilt
+aces.approvals overlay.
+
 ## Open
 
 - Aaron's confirmation of the Day 0 reading (above).

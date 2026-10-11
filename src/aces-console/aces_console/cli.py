@@ -8,8 +8,9 @@
     aces-console stop            SIGTERM the recorded pid, wait 5 s, SIGKILL, remove the pid file
     aces-console status          pid, url and the /api/health summary, or "not running"
     aces-console url             print the URL
-    aces-console <server key>    legacy aces-consoles behaviour: open server.<key> (grid_control, simlab_console,
-                                 mlflow, webodm, video_studio) from the aces configuration in a web-app window
+    aces-console <server key>    legacy aces-consoles behaviour: webodm and video_studio open server.<key> from the
+                                 aces configuration in a web-app window; grid_control, simlab_console and mlflow are
+                                 replaced by this console and open it at the plate that holds their content
 
 Exit codes: 0, 1 failure, 2 usage. The server log is $ACES_STATE/console/server.log; the pid file server.pid.
 """
@@ -28,12 +29,15 @@ from pathlib import Path
 from . import UI_NAME, __version__, config as console_config, httpc
 
 USAGE = """usage: aces-console [open|start|serve|stop|status|url] [options]
-       aces-console <server key>      (legacy: grid_control | simlab_console | mlflow | webodm | video_studio)
+       aces-console <server key>      (legacy: webodm | video_studio; grid_control | simlab_console | mlflow open this console)
 
   serve  --bind H  --port N  --static DIR  --fixtures DIR   (fixtures only with ACES_CONSOLE_ALLOW_FIXTURES=1)
 """
 COMMANDS = ("open", "start", "serve", "stop", "status", "url")
-LEGACY_KEYS = ("grid_control", "simlab_console", "mlflow", "webodm", "video_studio")
+LEGACY_KEYS = ("webodm", "video_studio")
+# GRID CONTROL, the SIMLAB console and MLflow are replaced by the ACES console (Aaron, 2026-10-11): their old keys open
+# the console at the plate that holds their content now
+REPLACED_KEYS = {"grid_control": "ops", "simlab_console": "pipeline", "mlflow": "pipeline"}
 START_WAIT_S = 90.0  # 45 x 2 s, the aces-webodm readiness ceiling (src/aces-survey/aces-webodm:124-131)
 STOP_WAIT_S = 5.0
 
@@ -287,7 +291,7 @@ def cmd_url(argv: list[str]) -> int:
     return 0
 
 
-def cmd_open(argv: list[str]) -> int:
+def cmd_open(argv: list[str], plate: str | None = None) -> int:
     try:
         settings = _settings(argv)
     except SystemExit as e:
@@ -297,11 +301,16 @@ def cmd_open(argv: list[str]) -> int:
         rc = cmd_start(argv)
         if rc != 0:
             return rc
-    return 0 if open_in_browser(settings.url) else 1
+    url = settings.url + (f"?plate={plate}" if plate else "")
+    return 0 if open_in_browser(url) else 1
 
 
 def cmd_legacy(key: str) -> int:
-    """The aces-consoles shim (src/aces-consoles/aces-console:11-21): open server.<key> or fail honestly."""
+    """The aces-consoles shim (src/aces-consoles/aces-console:11-21): open server.<key> or fail honestly. GRID CONTROL,
+    the SIMLAB console and MLflow are replaced: their keys open this console at the plate holding their content."""
+    if key in REPLACED_KEYS:
+        print(f"aces-console: {key} is replaced by the ACES console; opening its {REPLACED_KEYS[key]} plate", file=sys.stderr)
+        return cmd_open([], plate=REPLACED_KEYS[key])
     from aces import config as aces_config
 
     try:

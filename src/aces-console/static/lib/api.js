@@ -67,6 +67,12 @@ export const SOURCES = {
   "doctor": { path: "/api/doctor", ttl: 300, plates: ["ops"], inline: false },
   "system.packages": { path: "/api/system/packages", ttl: 300, plates: ["ops"], inline: false },
   "system.entries": { path: "/api/system/entries", ttl: 300, plates: ["ops"], inline: false },
+  "rig.redteam": { path: "/api/rig/redteam", ttl: 30, plates: ["ops"], inline: false },
+  "rig.downloads": { path: "/api/rig/downloads", ttl: 60, plates: ["ops"], inline: false },
+  "mc.runs": { path: "/api/mc/runs", ttl: 10, plates: ["agents"], inline: false },
+  "mc.missions": { path: "/api/mc/missions", ttl: 15, plates: ["agents"], inline: false },
+  "mc.sessions": { path: "/api/mc/sessions", ttl: 30, plates: ["agents"], inline: false },
+  "mc.agents": { path: "/api/mc/agents", ttl: 60, plates: ["agents"], inline: false },
 };
 
 export function topicsFor(plate) {

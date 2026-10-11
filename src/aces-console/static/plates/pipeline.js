@@ -15,7 +15,9 @@ export async function mount(root, ctx) {
     ctx, root, res: {}, summary: null, experiments: null, whoami: null, mlflow: null, capacity: null,
     eid: ctx.params.get("experiment") || null, eroot: ctx.params.get("root") || "queue", cid: ctx.params.get("case") || null,
     expRes: null, exp: null, caseRes: null, kase: null, loading: {}, dead: false,
-    b: { summary: el("div"), queue: el("div"), experiments: el("div"), exp: el("div"), kase: el("div"), mlflow: el("div"), foot: el("div.plate-foot.mono") },
+    ml: { exp: ctx.params.get("mlexp") || null, runsRes: null, runs: null, run: ctx.params.get("mlrun") || null, runRes: null, runDetail: null, artPath: "", artRes: null, hist: {} },
+    tools: { res: null, list: null, name: ctx.params.get("tool") || "", result: null, busy: false },
+    b: { summary: el("div"), queue: el("div"), experiments: el("div"), exp: el("div"), kase: el("div"), tools: el("div"), mlflow: el("div"), mlRuns: el("div"), mlRun: el("div"), foot: el("div.plate-foot.mono") },
   };
   root.append(
     block("summary · SIMLAB console /api/summary", [R.b.summary], { id: "pipe-summary" }),
@@ -23,7 +25,10 @@ export async function mount(root, ctx) {
     block("experiments · SIMLAB console /api/experiments", [R.b.experiments], { span2: true, id: "pipe-experiments", coord: "the console caps its job list at 300" }),
     block("experiment", [R.b.exp], { span2: true, id: "pipe-experiment" }),
     block("case", [R.b.kase], { span2: true, id: "pipe-case" }),
-    block("MLflow · experiments/search, as MLflow reports them", [R.b.mlflow], { span2: true, id: "pipe-mlflow" }),
+    block("SIMLAB actions · every simlab-mcp tool: validate, submit, sweep, cancel, results, reports", [R.b.tools], { span2: true, id: "pipe-tools" }),
+    block("MLflow · experiments", [R.b.mlflow], { span2: true, id: "pipe-mlflow" }),
+    block("MLflow · runs of the experiment", [R.b.mlRuns], { span2: true, id: "pipe-mlruns" }),
+    block("MLflow · run: params, metrics with history, artifacts", [R.b.mlRun], { span2: true, id: "pipe-mlrun" }),
     R.b.foot,
   );
   ctx.events.on("sim.summary", (st) => { if (st.changed) refetch("summary").then(() => { renderSummary(); renderFoot(); }); });
@@ -33,7 +38,10 @@ export async function mount(root, ctx) {
   ctx.events.on("mlflow.experiments", (st) => { if (st.changed) refetch("mlflow").then(renderMlflow); });
   await Promise.all(Object.keys(PATHS).map(refetch));
   if (R.dead) return;
-  renderSummary(); renderQueue(); renderExperiments(); renderMlflow(); renderFoot();
+  renderSummary(); renderQueue(); renderExperiments(); renderMlflow(); renderMlRuns(); renderMlRun(); renderFoot();
+  loadTools();
+  if (R.ml.exp) loadMlRuns(R.ml.exp);
+  if (R.ml.run) loadMlRun(R.ml.run);
   if (R.eid) await loadExperiment(R.eid, R.eroot, R.cid); else { renderExp(); renderCase(); renderInspector(); }
 }
 
@@ -313,7 +321,8 @@ function renderMlflowRun(c) {
     const tags = Array.isArray(data.tags) ? data.tags : [];
     wrap.append(el("div.cap", { text: `tags · ${tags.length}` }));
     wrap.append(table([{ th: "tag", key: "key", cls: "nm" }, { th: "value", render: (x) => String(x.value), cls: "body" }], tags, { empty: "no tags", caption: "MLflow tags" }));
-    if (m.ui_url) wrap.append(el("div.line", [el("span.k", { text: "MLflow UI" }), el("a", { href: m.ui_url, target: "_blank", rel: "noopener", text: format.noScheme(m.ui_url) }), el("span.dim", { text: "a link to the rig's MLflow page; this console proxies the REST API only" })]));
+    const rid = info.run_id || info.run_uuid;
+    if (rid) wrap.append(el("div.btnrow", [dom.button("Open in the MLflow browser", { onclick: () => { if (info.experiment_id) selectMlExp(String(info.experiment_id)); selectMlRun(rid); document.getElementById("pipe-mlrun")?.scrollIntoView({ block: "start" }); } }), el("span.dim", { text: "params, metric history and artifacts, below" })]));
   }
   R.b.kase.append(wrap);
 }
@@ -327,10 +336,243 @@ function renderMlflow() {
   if (!d) { if (!abs) box.append(note("MLflow experiments not loaded", "no reply yet")); return; }
   const rows = Array.isArray(d.experiments) ? d.experiments : [];
   box.append(table([
-    { th: "id", key: "experiment_id", num: true }, { th: "experiment", key: "name", cls: "nm" }, { th: "lifecycle", key: "lifecycle_stage" },
+    { th: "id", key: "experiment_id", num: true },
+    { th: "experiment", render: (e) => el("button.linkish" + (String(e.experiment_id) === R.ml.exp ? ".eye" : ""), { type: "button", text: e.name, title: `list the runs of ${e.name}`, onclick: () => selectMlExp(String(e.experiment_id)) }), cls: "nm" },
+    { th: "lifecycle", key: "lifecycle_stage" },
     { th: "artifacts", key: "artifact_location", cls: "body" }, { th: "created", render: (e) => format.utcShort(e.creation_time) }, { th: "updated", render: (e) => format.utcShort(e.last_update_time) },
   ], rows, { empty: "MLflow lists no experiments", caption: "MLflow experiments" }));
-  box.append(el("div.prose.dim", { text: "MLflow's UI is a link from the Ops plate; its REST API is read here. A run opens from its case (the MLflow run card above)." }));
+}
+
+function setMlURL() {
+  const u = new URL(location.href); u.searchParams.set("plate", "pipeline");
+  if (R.ml.exp) u.searchParams.set("mlexp", R.ml.exp); else u.searchParams.delete("mlexp");
+  if (R.ml.run) u.searchParams.set("mlrun", R.ml.run); else u.searchParams.delete("mlrun");
+  history.replaceState(null, "", u);
+}
+
+function selectMlExp(id) {
+  if (R.ml.exp === id && R.ml.runs) return;
+  R.ml.exp = id; R.ml.runs = null; R.ml.runsRes = null; setMlURL(); renderMlflow(); renderMlRuns(); loadMlRuns(id);
+}
+
+async function loadMlRuns(id) {
+  const r = await R.ctx.api.get(`/api/mlflow/runs?experiment_id=${encodeURIComponent(id)}&max=200`);
+  if (!R || R.dead || R.ml.exp !== id) return;
+  R.ml.runsRes = r; R.ml.runs = r.ok ? r.data : null;
+  renderMlRuns();
+}
+
+function renderMlRuns() {
+  const { dom, format } = R.ctx; const { el, clear, absence, note, table } = dom;
+  const box = R.b.mlRuns; clear(box);
+  if (!R.ml.exp) { box.append(note("no MLflow experiment selected", "pick an experiment above to list its runs")); return; }
+  const abs = absence(R.ml.runsRes, `runs of MLflow experiment ${R.ml.exp}`);
+  if (abs) box.append(abs);
+  const d = R.ml.runs;
+  if (!d) { if (!abs) box.append(note(`experiment ${R.ml.exp}`, "loading its runs")); return; }
+  const rows = Array.isArray(d.runs) ? d.runs : [];
+  const keys = [...new Set(rows.flatMap((r) => (r.metrics || []).map((m) => m.key)))].slice(0, 4);
+  box.append(el("div.line", [el("span.k", { text: "runs" }), el("b", { text: `${rows.length}${d.page_more ? " (newest first; more exist)" : ""}` })]));
+  box.append(table([
+    { th: "run", render: (r) => { const rid = r.info.run_id || r.info.run_uuid; return el("button.linkish" + (rid === R.ml.run ? ".eye" : ""), { type: "button", text: r.run_name || rid, title: rid, onclick: () => selectMlRun(rid) }); }, cls: "nm" },
+    { th: "status", render: (r) => r.info.status || format.DASH },
+    { th: "started", render: (r) => format.utcShort(r.info.start_time) },
+    { th: "duration", render: (r) => (r.info.start_time && r.info.end_time ? format.dur((r.info.end_time - r.info.start_time) / 1000) : format.DASH) },
+    ...keys.map((k) => ({ th: k, num: true, render: (r) => { const m = (r.metrics || []).find((x) => x.key === k); return m ? format.num(m.value, 5) : format.DASH; } })),
+    { th: "params", num: true, render: (r) => String(r.n_params ?? format.DASH) },
+  ], rows, { empty: "this experiment has no runs", caption: "MLflow runs", cls: "wrapnames" }));
+}
+
+function selectMlRun(rid) {
+  R.ml.run = rid; R.ml.runDetail = null; R.ml.runRes = null; R.ml.artPath = ""; R.ml.hist = {}; setMlURL(); renderMlRuns(); renderMlRun(); loadMlRun(rid);
+}
+
+async function loadMlRun(rid) {
+  const [r, a] = await Promise.all([R.ctx.api.get(`/api/mlflow/run/${rid}`), R.ctx.api.get(`/api/mlflow/artifacts?run_id=${rid}`)]);
+  if (!R || R.dead || R.ml.run !== rid) return;
+  R.ml.runRes = r; R.ml.runDetail = r.ok ? r.data : null; R.ml.artRes = a;
+  renderMlRun();
+  const metrics = R.ml.runDetail && R.ml.runDetail.run && R.ml.runDetail.run.data && Array.isArray(R.ml.runDetail.run.data.metrics) ? R.ml.runDetail.run.data.metrics : [];
+  for (const m of metrics.slice(0, 12)) loadHistory(rid, m.key);
+}
+
+async function loadHistory(rid, key) {
+  const r = await R.ctx.api.get(`/api/mlflow/metric-history?run_id=${rid}&key=${encodeURIComponent(key)}`);
+  if (!R || R.dead || R.ml.run !== rid) return;
+  R.ml.hist[key] = r;
+  const cell = R.b.mlRun.querySelector(`[data-spark="${CSS.escape(key)}"]`);
+  if (cell) { R.ctx.dom.clear(cell); cell.append(spark(r)); }
+}
+
+function spark(r) {
+  const { el } = R.ctx.dom;
+  if (!r) return el("span.dim", { text: "loading" });
+  if (!r.ok) return el("span.dim", { text: r.error || "history not available" });
+  const pts = (r.data && Array.isArray(r.data.points) ? r.data.points : []).filter((p) => Number.isFinite(p.value));
+  if (pts.length < 2) return el("span.dim", { text: pts.length === 1 ? "one value" : "no history" });
+  const xs = pts.map((p, i) => (Number.isFinite(p.step) ? p.step : i)); const ys = pts.map((p) => p.value);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const W = 180, H = 36;
+  const d = pts.map((p, i) => `${i ? "L" : "M"}${(((xs[i] - x0) / ((x1 - x0) || 1)) * W).toFixed(1)},${(H - ((ys[i] - y0) / ((y1 - y0) || 1)) * H + 2).toFixed(1)}`).join("");
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "spark"); svg.setAttribute("viewBox", `0 0 ${W} ${H + 4}`); svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", `${pts.length} points from ${R.ctx.format.num(ys[0], 4)} to ${R.ctx.format.num(ys[ys.length - 1], 4)}`);
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); path.setAttribute("d", d); svg.append(path);
+  return el("span", { title: `${pts.length} points · min ${R.ctx.format.num(y0, 5)} · max ${R.ctx.format.num(y1, 5)}` }, [svg]);
+}
+
+async function openArtDir(path) {
+  R.ml.artPath = path;
+  const rid = R.ml.run;
+  const a = await R.ctx.api.get(`/api/mlflow/artifacts?run_id=${rid}${path ? "&path=" + encodeURIComponent(path) : ""}`);
+  if (!R || R.dead || R.ml.run !== rid) return;
+  R.ml.artRes = a; renderMlRun();
+}
+
+function renderMlRun() {
+  const { dom, format } = R.ctx; const { el, clear, absence, note, kv, table, button } = dom;
+  const box = R.b.mlRun; clear(box);
+  if (!R.ml.run) { box.append(note("no MLflow run selected", "pick a run above, or open one from a case's MLflow card")); return; }
+  const abs = absence(R.ml.runRes, `MLflow run ${R.ml.run}`);
+  if (abs) box.append(abs);
+  const d = R.ml.runDetail;
+  if (!d || !d.run) { if (!abs) box.append(note(`MLflow run ${R.ml.run}`, "loading")); return; }
+  const info = d.run.info || {}, data = d.run.data || {};
+  box.append(kv([["run", info.run_name || info.run_id], ["status (as MLflow reports it)", info.status], ["experiment id", info.experiment_id], ["started", info.start_time ? format.utc(info.start_time) : null], ["ended", info.end_time ? format.utc(info.end_time) : null], ["duration", info.start_time && info.end_time ? format.dur((info.end_time - info.start_time) / 1000) : null], ["lifecycle", info.lifecycle_stage], ["artifact uri", info.artifact_uri]]));
+  const metrics = Array.isArray(data.metrics) ? data.metrics : [];
+  box.append(el("div.cap", { text: `metrics · ${metrics.length} (latest value; history drawn for the first 12, the rest on demand)` }));
+  box.append(table([
+    { th: "metric", key: "key", cls: "nm" },
+    { th: "latest", render: (x) => format.num(x.value, 6), num: true },
+    { th: "step", render: (x) => String(x.step ?? format.DASH), num: true },
+    { th: "history", render: (x) => { const c = el("span", { dataset: { spark: x.key } }); c.append(R.ml.hist[x.key] ? spark(R.ml.hist[x.key]) : button("Draw", { onclick: () => { clear(c); c.append(spark(null)); loadHistory(R.ml.run, x.key); } })); return c; } },
+  ], metrics, { empty: "no metrics", caption: "MLflow metrics" }));
+  const params = Array.isArray(data.params) ? data.params : [];
+  box.append(el("div.cap", { text: `params · ${params.length}` }));
+  box.append(table([{ th: "param", key: "key", cls: "nm" }, { th: "value", render: (x) => el("code.mono", { text: String(x.value) }), cls: "body" }], params, { empty: "no params", caption: "MLflow params" }));
+  const tags = (Array.isArray(data.tags) ? data.tags : []).filter((t) => !String(t.key).startsWith("mlflow.log-model"));
+  box.append(el("div.cap", { text: `tags · ${tags.length}` }));
+  box.append(table([{ th: "tag", key: "key", cls: "nm" }, { th: "value", render: (x) => String(x.value), cls: "body" }], tags, { empty: "no tags", caption: "MLflow tags" }));
+  box.append(el("div.cap", { text: `artifacts · ${R.ml.artPath ? R.ml.artPath + "/" : "(root)"}` }));
+  const aabs = absence(R.ml.artRes, "MLflow artifacts");
+  if (aabs) box.append(aabs);
+  const files = R.ml.artRes && R.ml.artRes.ok && R.ml.artRes.data ? R.ml.artRes.data.files || [] : [];
+  const up = R.ml.artPath ? R.ml.artPath.split("/").slice(0, -1).join("/") : null;
+  if (up !== null) box.append(el("div.btnrow", [button("Up one folder", { onclick: () => openArtDir(up) })]));
+  box.append(table([
+    { th: "path", render: (f) => (f.is_dir ? el("button.linkish", { type: "button", text: `${f.path}/`, onclick: () => openArtDir(f.path) }) : el("a", { href: `/api/mlflow/artifact?run_id=${R.ml.run}&path=${encodeURIComponent(f.path)}`, target: "_blank", rel: "noopener", text: f.path })), cls: "nm" },
+    { th: "size", num: true, render: (f) => (f.is_dir ? "folder" : format.bytes(Number(f.file_size))) },
+  ], files, { empty: "no artifacts at this path", caption: "MLflow artifacts", cls: "wrapnames" }));
+}
+
+// ---------- SIMLAB actions: one form per simlab-mcp tool, built from the tool's own input schema ----------
+async function loadTools() {
+  const r = await R.ctx.api.get("/api/sim/tools");
+  if (!R || R.dead) return;
+  R.tools.res = r; R.tools.list = r.ok && r.data ? r.data.tools || [] : null;
+  if (!R.tools.name && R.tools.list && R.tools.list.length) R.tools.name = (R.tools.list.find((t) => t.name === "sim_list_experiments") || R.tools.list[0]).name;
+  renderTools();
+}
+
+function simpleType(spec) {
+  if (!spec || typeof spec !== "object") return { type: "json" };
+  if (Array.isArray(spec.enum)) return { type: "enum", values: spec.enum };
+  if (spec.type && spec.type !== "null") return { type: ["string", "integer", "number", "boolean"].includes(spec.type) ? spec.type : "json" };
+  const alts = (spec.anyOf || spec.oneOf || []).filter((a) => a && a.type !== "null");
+  if (alts.length === 1) return simpleType(alts[0]);
+  return { type: "json" };
+}
+
+async function sha256Hex(buf) {
+  const h = await crypto.subtle.digest("SHA-256", buf);
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function renderTools() {
+  const { dom } = R.ctx; const { el, clear, absence, note, button } = dom;
+  const box = R.b.tools; clear(box);
+  const abs = absence(R.tools.res, "simlab-mcp tools");
+  if (abs) box.append(abs);
+  const list = R.tools.list;
+  if (!list) { if (!abs) box.append(note("simlab-mcp tools not loaded", "no reply yet")); return; }
+  const tool = list.find((t) => t.name === R.tools.name) || list[0];
+  if (!tool) { box.append(note("no tools", "simlab-mcp lists no tools")); return; }
+  const sel = el("select", { "aria-label": "simlab-mcp tool", onchange: (e) => { R.tools.name = e.target.value; R.tools.result = null; renderTools(); } });
+  for (const t of list) sel.append(el("option", { value: t.name, text: `${t.name}${t.write ? " (writes)" : ""}`, selected: t.name === tool.name ? "selected" : null }));
+  box.append(el("div.btnrow", [el("label.k", { text: "tool" }), sel, tool.write ? el("span.state.ink-amber", { text: "writes to the rig: confirmed by name, ledgered" }) : el("span.dim", { text: "read only" })]));
+  if (tool.description) box.append(el("div.prose", { text: tool.description }));
+  const schema = tool.input_schema || {};
+  const props = schema.properties || {};
+  const required = new Set(schema.required || []);
+  const form = el("div.toolform");
+  const fields = {};
+  for (const [name, spec] of Object.entries(props)) {
+    const t = simpleType(spec);
+    const id = `tool-${tool.name}-${name}`;
+    let input;
+    if (t.type === "enum") { input = el("select", { id }); input.append(el("option", { value: "", text: "(not set)" })); for (const v of t.values) input.append(el("option", { value: JSON.stringify(v), text: String(v) })); }
+    else if (t.type === "boolean") { input = el("select", { id }); for (const [v, label] of [["", "(not set)"], ["true", "true"], ["false", "false"]]) input.append(el("option", { value: v, text: label, selected: spec.default !== undefined && String(spec.default) === v ? "selected" : null })); }
+    else if (t.type === "integer" || t.type === "number") input = el("input", { id, type: "number", step: t.type === "integer" ? "1" : "any", placeholder: spec.default !== undefined ? `default ${spec.default}` : "" });
+    else if (t.type === "string" && !/content|spec$|yaml|json|note/.test(name)) input = el("input", { id, type: "text", placeholder: spec.default !== undefined && spec.default !== null ? `default ${spec.default}` : "" });
+    else input = el("textarea", { id, rows: t.type === "json" ? "3" : "6", placeholder: t.type === "json" ? "JSON, e.g. {\"param\": [1, 2, 3]}" : "" });
+    fields[name] = { input, type: t.type };
+    form.append(el("label", { for: id }, [name, required.has(name) ? el("span.req", { text: " *" }) : null]), input);
+    if (spec.description || spec.title) form.append(el("div.hint", { text: String(spec.description || spec.title) }));
+  }
+  if (!Object.keys(props).length) form.append(el("div.prose.dim", { text: "this tool takes no arguments" }));
+  box.append(form);
+  if (tool.name === "sim_put_file") {
+    const file = el("input", { type: "file", "aria-label": "file to upload to the rig", onchange: async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const buf = await f.arrayBuffer();
+      let bin = ""; const bytes = new Uint8Array(buf); for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      if (fields.name) fields.name.input.value = f.name;
+      if (fields.content_b64) fields.content_b64.input.value = btoa(bin);
+      if (fields.total_bytes) fields.total_bytes.input.value = String(buf.byteLength);
+      if (fields.sha256) fields.sha256.input.value = await sha256Hex(buf);
+    } });
+    box.append(el("div.btnrow", [el("label.k", { text: "fill from a file" }), file]));
+  }
+  const raw = el("textarea", { rows: "2", placeholder: "or the arguments as one JSON object (overrides the fields above)", "aria-label": "arguments as JSON" });
+  box.append(raw);
+  const confirm = tool.write ? el("input.type.short", { type: "text", autocomplete: "off", spellcheck: "false", placeholder: `type ${tool.name}`, "aria-label": `type ${tool.name} to confirm` }) : null;
+  const run = button(tool.write ? `Run ${tool.name} on the rig` : `Run ${tool.name}`, { cls: tool.write ? "btn primary" : "btn", disabled: !!tool.write || R.tools.busy, onclick: () => runTool(tool, fields, raw.value, confirm ? confirm.value : null) });
+  if (confirm) confirm.addEventListener("input", () => { run.disabled = confirm.value !== tool.name || R.tools.busy; });
+  box.append(el("div.btnrow", [confirm, run]));
+  const res = R.tools.result;
+  if (res && res.tool === tool.name) {
+    if (res.ok) {
+      box.append(el("div.line", [el("span.k", { text: "result" }), el("b", { text: `${tool.name} answered in ${res.data.seconds} s${res.data.ledger_n ? " · ledger #" + res.data.ledger_n : ""}` })]));
+      const eid = res.data.result && typeof res.data.result === "object" ? (res.data.result.experiment_id || res.data.result.eid || null) : null;
+      if (eid) box.append(el("div.btnrow", [button(`Open experiment ${eid}`, { onclick: () => { loadExperiment(String(eid), "queue", null); document.getElementById("pipe-experiment")?.scrollIntoView({ block: "start" }); } })]));
+      box.append(el("pre.pre", { text: JSON.stringify(res.data.result, null, 2) }));
+    } else box.append(note(`${tool.name} failed`, `${res.error} (HTTP ${res.status}${res.code ? ", " + res.code : ""})`, { fault: res.status === 502, act: res.status !== 502 }));
+  }
+}
+
+async function runTool(tool, fields, rawText, confirm) {
+  const { dom } = R.ctx;
+  let args = {};
+  try {
+    if (rawText && rawText.trim()) { args = JSON.parse(rawText); if (!args || typeof args !== "object" || Array.isArray(args)) throw new Error("the JSON must be an object"); }
+    else for (const [name, f] of Object.entries(fields)) {
+      const v = f.input.value;
+      if (v === "" || v === null || v === undefined) continue;
+      if (f.type === "integer") args[name] = parseInt(v, 10);
+      else if (f.type === "number") args[name] = Number(v);
+      else if (f.type === "boolean") args[name] = v === "true";
+      else if (f.type === "enum" || f.type === "json") args[name] = JSON.parse(v);
+      else args[name] = v;
+    }
+  } catch (e) { R.tools.result = { tool: tool.name, ok: false, status: 400, code: "bad-arguments", error: `arguments: ${e.message}` }; renderTools(); return; }
+  R.tools.busy = true;
+  const r = await R.ctx.api.post(`/api/sim/tool/${tool.name}`, { arguments: args, ...(tool.write ? { confirm } : {}) });
+  if (!R || R.dead) return;
+  R.tools.busy = false;
+  R.tools.result = { tool: tool.name, ...r };
+  renderTools();
+  if (r.ok && tool.write) refetch("experiments").then(() => { renderQueue(); renderExperiments(); });
+  void dom;
 }
 
 function renderFoot() {

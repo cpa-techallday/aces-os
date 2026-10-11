@@ -192,9 +192,12 @@ class RigRoutesTest(unittest.TestCase):
         self.assertEqual(body["meta"]["error"], "HTTP 404")
         self.assertEqual(self.gc.requests_for("GET", "/api/decisions")[-1]["headers"].get("x-gc-token"), TOKEN)
         with mock.patch.dict(os.environ, {"ACES_GC_TOKEN": ""}):
+            # without a token the decisions are read through the SIMLAB console's /gc read proxy; here that console
+            # is a closed port, so the reply is an honest absence with the reason, never a 5xx
+            self.c.app.cache.invalidate("rig.decisions")
             status, _, body = self.c.get("/api/rig/decisions")
-            self.assertEqual((status, body["data"], body["meta"]["code"]), (200, None, "not-configured"))
-            self.assertTrue(body["meta"]["error"].startswith("not configured: GRID CONTROL token"))
+            self.assertEqual((status, body["data"], body["meta"]["ok"]), (200, None, False))
+            self.assertTrue(body["meta"]["error"])
 
     def test_prepare_refusals_are_ledgered_once_per_window(self):
         n0 = len(ledger_entries())

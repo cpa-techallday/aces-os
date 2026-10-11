@@ -1,178 +1,226 @@
 [
- {
-  "file": "gc-status.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "GRID CONTROL GET http://192.168.1.65:3200/api/status",
-  "captured_utc": "2026-10-10T22:55:13Z",
-  "sha256": "17bdca1358a349232bf58c18e40229629813f0949d34ba58db376c6a51a5077f",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "gc-modes.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "GRID CONTROL GET http://192.168.1.65:3200/api/modes",
-  "captured_utc": "2026-10-10T22:55:13Z",
-  "sha256": "03f6bee1fe2c352559e6a7c676c08f6d23b49b667c213eb22ac7c250a87d50bc",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "gc-telemetry.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "GRID CONTROL GET http://192.168.1.65:3200/api/telemetry",
-  "captured_utc": "2026-10-10T22:55:13Z",
-  "sha256": "441cbbb9ef43cd667e3266b47287c8c35de24daef995103e538045d12f485cac",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "gc-switch-status.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "GRID CONTROL GET http://192.168.1.65:3200/api/switch/status",
-  "captured_utc": "2026-10-11T00:34:41Z",
-  "sha256": "8f6012ed6168c547611a2e014b69e1a7a43e77aebad0cc104d8b765ca04b6ca8",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "rigstate-snapshot.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "rig-state MCP POST http://192.168.1.65:8010/mcp tools/call rig_snapshot (JSON-RPC envelope as received)",
-  "captured_utc": "2026-10-10T22:55:16Z",
-  "sha256": "1ce767915b2327f57c5901fb176999d53172cdc14e30a81605092780551a9078",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "rigstate-tools.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "rig-state MCP POST http://192.168.1.65:8010/mcp tools/list (JSON-RPC envelope as received)",
-  "captured_utc": "2026-10-10T22:55:16Z",
-  "sha256": "10b3cb8406db62db564c9a39818f94cd9ff9b3c4d5c87cb3215a3a6c1d1a774b",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "simlab-capacity.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/capacity",
-  "captured_utc": "2026-10-10T22:55:15Z",
-  "sha256": "235b875d21d91482395c41dd6a81db2855d83f25c3df50eec9ba1c61451a813c",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "simlab-telemetry.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/telemetry",
-  "captured_utc": "2026-10-10T22:55:15Z",
-  "sha256": "83f97eb779f46df27df728450889a1d0d9ddcf1eedb59683e4d73ae2663ec464",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "simlab-summary.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/summary",
-  "captured_utc": "2026-10-10T22:55:14Z",
-  "sha256": "d7e0be05f5568ec8aca20288124798540e6104c394a61f2dfd37c331a09d9cf6",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "simlab-whoami.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "simlab-mcp POST http://192.168.1.65:8022/mcp tools/call sim_whoami (JSON-RPC envelope as received)",
-  "captured_utc": "2026-10-10T22:55:16Z",
-  "sha256": "ccc6c07c37bb8319537c0b1ef24166f9833b0787fa579c490cc04f5d0ba889ee",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised; the id is rewritten to the request id when replayed"
- },
- {
-  "file": "simlab-registry.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/registry",
-  "captured_utc": "2026-10-10T22:55:15Z",
-  "sha256": "119803fcd8ec7941e35dceb932d58d86d3d35b745dc6535966037fd4ef4e5579",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "simlab-experiments.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/experiments",
-  "captured_utc": "2026-10-10T22:55:15Z",
-  "sha256": "c64f654f2ed45e714f17492f626032cb5a60302f558b8c283a1488cab6c5558c",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "simlab-evidence.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/evidence",
-  "captured_utc": "2026-10-10T22:55:15Z",
-  "sha256": "12034d916125fa2013e8cf912f4fe6ae21f76de6ed790e06be8ce8bc33b0697e",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "simlab-evidence-verify.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/evidence/verify",
-  "captured_utc": "2026-10-11T00:34:41Z",
-  "sha256": "bb9d1990656ee8124e6cab13b6b04e9f73e10c43935b98cbc403b85e4f5b4218",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "simlab-audit.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/audit",
-  "captured_utc": "2026-10-11T00:34:41Z",
-  "sha256": "dc8aebf6679ce37f2f821ab94da2785d79717d85f866fce20a4af55cae502b5a",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "simlab-case-detail.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/case/aces-cal-air-03d/c000?root=queue",
-  "captured_utc": "2026-10-11T00:34:41Z",
-  "sha256": "788ab3447ae07a03ec8ff2e7377ae0907b52b774c7a597c34434ced71e88163a",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "simlab-experiment-detail.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/experiments/aces-cal-air-03d?root=queue",
-  "captured_utc": "2026-10-11T00:34:41Z",
-  "sha256": "1ef1f8ad5020de322d4f04a4fe3ace8e44e875be978dca5b6dee7bdb6aa948f0",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "simlab-mcp-tools.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "simlab-mcp POST http://192.168.1.65:8022/mcp tools/list (JSON-RPC envelope as received)",
-  "captured_utc": "2026-10-10T22:55:16Z",
-  "sha256": "a1cf53b320b3662def5efcfdd188925a584782d12ab48d3a4bddf936bca14a2d",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised; the id is rewritten to the request id when replayed"
- },
- {
-  "file": "simlab-modes.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/modes",
-  "captured_utc": "2026-10-11T00:34:41Z",
-  "sha256": "f54e2f3d7b3bedae08d97207503c46bb4426d130a2a93446cd5eef26dc5ade87",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "mlflow-experiments.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "MLflow GET http://192.168.1.65:5000/api/2.0/mlflow/experiments/search",
-  "captured_utc": "2026-10-10T22:55:16Z",
-  "sha256": "852fbd964f6a03fcd9fd8a013d82abb19c524ce991a0135839372b8e99e2582d",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "mlflow-run-get.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "MLflow GET http://192.168.1.65:5000/api/2.0/mlflow/runs/get?run_id=97cfbb614b98494b8d3aaa63e46cfd9e",
-  "captured_utc": "2026-10-11T00:34:42Z",
-  "sha256": "a3c489b5a574aa627bc306de96446bb66c7ee28c40ca2ded39c62918740511e8",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
- },
- {
-  "file": "mlflow-runs-search.json",
-  "origin_host": "192.168.1.65",
-  "origin_route": "MLflow POST http://192.168.1.65:5000/api/2.0/mlflow/runs/search",
-  "captured_utc": "2026-10-11T00:34:42Z",
-  "sha256": "cfd950eec2397c14bcb5d1e3355342b410ace0f84c8f175f36a8a68ab751a295",
-  "note": "live read-only capture; credential-looking lines stripped; nothing synthesised. NOT VALID JSON as captured: the stripping of credential-looking lines removed the `next_page_token` line and left a trailing comma after the runs array (line 657); kept byte-exact, so a fixtures-mode read of this route reports the file as unreadable instead of a repaired capture"
- }
+  {
+    "file": "gc-status.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "GRID CONTROL GET http://192.168.1.65:3200/api/status",
+    "captured_utc": "2026-10-10T22:55:13Z",
+    "sha256": "17bdca1358a349232bf58c18e40229629813f0949d34ba58db376c6a51a5077f",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "gc-modes.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "GRID CONTROL GET http://192.168.1.65:3200/api/modes",
+    "captured_utc": "2026-10-10T22:55:13Z",
+    "sha256": "03f6bee1fe2c352559e6a7c676c08f6d23b49b667c213eb22ac7c250a87d50bc",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "gc-telemetry.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "GRID CONTROL GET http://192.168.1.65:3200/api/telemetry",
+    "captured_utc": "2026-10-10T22:55:13Z",
+    "sha256": "441cbbb9ef43cd667e3266b47287c8c35de24daef995103e538045d12f485cac",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "gc-switch-status.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "GRID CONTROL GET http://192.168.1.65:3200/api/switch/status",
+    "captured_utc": "2026-10-11T00:34:41Z",
+    "sha256": "8f6012ed6168c547611a2e014b69e1a7a43e77aebad0cc104d8b765ca04b6ca8",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "rigstate-snapshot.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "rig-state MCP POST http://192.168.1.65:8010/mcp tools/call rig_snapshot (JSON-RPC envelope as received)",
+    "captured_utc": "2026-10-10T22:55:16Z",
+    "sha256": "1ce767915b2327f57c5901fb176999d53172cdc14e30a81605092780551a9078",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "rigstate-tools.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "rig-state MCP POST http://192.168.1.65:8010/mcp tools/list (JSON-RPC envelope as received)",
+    "captured_utc": "2026-10-10T22:55:16Z",
+    "sha256": "10b3cb8406db62db564c9a39818f94cd9ff9b3c4d5c87cb3215a3a6c1d1a774b",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "simlab-capacity.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/capacity",
+    "captured_utc": "2026-10-10T22:55:15Z",
+    "sha256": "235b875d21d91482395c41dd6a81db2855d83f25c3df50eec9ba1c61451a813c",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "simlab-telemetry.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/telemetry",
+    "captured_utc": "2026-10-10T22:55:15Z",
+    "sha256": "83f97eb779f46df27df728450889a1d0d9ddcf1eedb59683e4d73ae2663ec464",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "simlab-summary.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/summary",
+    "captured_utc": "2026-10-10T22:55:14Z",
+    "sha256": "d7e0be05f5568ec8aca20288124798540e6104c394a61f2dfd37c331a09d9cf6",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "simlab-whoami.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "simlab-mcp POST http://192.168.1.65:8022/mcp tools/call sim_whoami (JSON-RPC envelope as received)",
+    "captured_utc": "2026-10-10T22:55:16Z",
+    "sha256": "ccc6c07c37bb8319537c0b1ef24166f9833b0787fa579c490cc04f5d0ba889ee",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised; the id is rewritten to the request id when replayed"
+  },
+  {
+    "file": "simlab-registry.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/registry",
+    "captured_utc": "2026-10-10T22:55:15Z",
+    "sha256": "119803fcd8ec7941e35dceb932d58d86d3d35b745dc6535966037fd4ef4e5579",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "simlab-experiments.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/experiments",
+    "captured_utc": "2026-10-10T22:55:15Z",
+    "sha256": "c64f654f2ed45e714f17492f626032cb5a60302f558b8c283a1488cab6c5558c",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "simlab-evidence.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/evidence",
+    "captured_utc": "2026-10-10T22:55:15Z",
+    "sha256": "12034d916125fa2013e8cf912f4fe6ae21f76de6ed790e06be8ce8bc33b0697e",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "simlab-evidence-verify.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/evidence/verify",
+    "captured_utc": "2026-10-11T00:34:41Z",
+    "sha256": "bb9d1990656ee8124e6cab13b6b04e9f73e10c43935b98cbc403b85e4f5b4218",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "simlab-audit.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/audit",
+    "captured_utc": "2026-10-11T00:34:41Z",
+    "sha256": "dc8aebf6679ce37f2f821ab94da2785d79717d85f866fce20a4af55cae502b5a",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "simlab-case-detail.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/case/aces-cal-air-03d/c000?root=queue",
+    "captured_utc": "2026-10-11T00:34:41Z",
+    "sha256": "788ab3447ae07a03ec8ff2e7377ae0907b52b774c7a597c34434ced71e88163a",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "simlab-experiment-detail.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/experiments/aces-cal-air-03d?root=queue",
+    "captured_utc": "2026-10-11T00:34:41Z",
+    "sha256": "1ef1f8ad5020de322d4f04a4fe3ace8e44e875be978dca5b6dee7bdb6aa948f0",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "simlab-mcp-tools.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "simlab-mcp POST http://192.168.1.65:8022/mcp tools/list (JSON-RPC envelope as received)",
+    "captured_utc": "2026-10-10T22:55:16Z",
+    "sha256": "a1cf53b320b3662def5efcfdd188925a584782d12ab48d3a4bddf936bca14a2d",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised; the id is rewritten to the request id when replayed"
+  },
+  {
+    "file": "simlab-modes.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "SIMLAB console GET http://192.168.1.65:8032/api/modes",
+    "captured_utc": "2026-10-11T00:34:41Z",
+    "sha256": "f54e2f3d7b3bedae08d97207503c46bb4426d130a2a93446cd5eef26dc5ade87",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "mlflow-experiments.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "MLflow GET http://192.168.1.65:5000/api/2.0/mlflow/experiments/search",
+    "captured_utc": "2026-10-10T22:55:16Z",
+    "sha256": "852fbd964f6a03fcd9fd8a013d82abb19c524ce991a0135839372b8e99e2582d",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "mlflow-run-get.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "MLflow GET http://192.168.1.65:5000/api/2.0/mlflow/runs/get?run_id=97cfbb614b98494b8d3aaa63e46cfd9e",
+    "captured_utc": "2026-10-11T00:34:42Z",
+    "sha256": "a3c489b5a574aa627bc306de96446bb66c7ee28c40ca2ded39c62918740511e8",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised"
+  },
+  {
+    "file": "mlflow-runs-search.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "MLflow POST http://192.168.1.65:5000/api/2.0/mlflow/runs/search",
+    "captured_utc": "2026-10-11T00:34:42Z",
+    "sha256": "cfd950eec2397c14bcb5d1e3355342b410ace0f84c8f175f36a8a68ab751a295",
+    "note": "live read-only capture; credential-looking lines stripped; nothing synthesised. NOT VALID JSON as captured: the stripping of credential-looking lines removed the `next_page_token` line and left a trailing comma after the runs array (line 657); kept byte-exact, so a fixtures-mode read of this route reports the file as unreadable instead of a repaired capture"
+  },
+  {
+    "file": "mlflow-metric-history.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "GET http://192.168.1.65:5000/api/2.0/mlflow/metrics/get-history?run_id=97cfbb614b98494b8d3aaa63e46cfd9e&metric_key=h_mm&max_results=25000",
+    "captured_utc": "2026-10-11T10:01:15Z",
+    "sha256": "488142a4107fd2dbb0483494073043a65120d94d6e84b70041bde99554e6ee02",
+    "note": "live read-only capture (aces-console 0.1.0 MLflow browser); nothing synthesised"
+  },
+  {
+    "file": "mlflow-artifacts-list.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "GET http://192.168.1.65:5000/api/2.0/mlflow/artifacts/list?run_id=97cfbb614b98494b8d3aaa63e46cfd9e",
+    "captured_utc": "2026-10-11T10:01:15Z",
+    "sha256": "7bfa08f223813682dce3542316f5f409cc6022dcffea5b73b8143b1af3b99d8a",
+    "note": "live read-only capture (aces-console 0.1.0 MLflow browser); nothing synthesised"
+  },
+  {
+    "file": "mlflow-artifact-ccx.cvg",
+    "origin_host": "192.168.1.65",
+    "origin_route": "GET http://192.168.1.65:5000/get-artifact?path=ccx.cvg&run_uuid=97cfbb614b98494b8d3aaa63e46cfd9e",
+    "captured_utc": "2026-10-11T10:01:15Z",
+    "sha256": "65086dedb4572132b815ace04b294909c7f6f337111f9704fc310b02320f67f7",
+    "note": "live read-only capture of one small artifact (ccx.cvg, CalculiX convergence log) of the captured run; bytes as served"
+  },
+  {
+    "file": "gc-downloads-status.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "GET http://192.168.1.65:3200/downloads-status.json",
+    "captured_utc": "2026-10-11T10:01:15Z",
+    "sha256": "31c5cdd8a077b853e61a87a7f5c2a17c0044df810a978433d1fc6bdb9f292a4b",
+    "note": "live read-only capture of GRID CONTROL's model staging file (no token needed); nothing synthesised"
+  },
+  {
+    "file": "gc-redteam-status.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "GET http://192.168.1.65:8032/gc/api/redteam/status",
+    "captured_utc": "2026-10-11T10:01:15Z",
+    "sha256": "1b789104f1a1135c4300ee4bddbf332bb958eee15fdd01fde9859f1ed4aa7595",
+    "note": "live read-only capture through the SIMLAB console's GET-only /gc read proxy (the rig's own token; none read here)"
+  },
+  {
+    "file": "simlab-list-experiments.json",
+    "origin_host": "192.168.1.65",
+    "origin_route": "POST http://192.168.1.65:8022/mcp",
+    "captured_utc": "2026-10-11T10:01:15Z",
+    "sha256": "eab14e2913610a1f911b9d71bc63c30d58b878cdece58626ecc06741d97e97a0",
+    "note": "live read-only capture: simlab-mcp tools/call sim_list_experiments (JSON-RPC reply, text/event-stream framing as served); nothing synthesised"
+  }
 ]

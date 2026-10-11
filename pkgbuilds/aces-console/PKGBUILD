@@ -7,7 +7,7 @@
 # src/aces-console by bin/build.
 pkgname=aces-console
 pkgver=0.1.0
-pkgrel=1
+pkgrel=2
 pkgdesc="ACES console: the one desktop console for the rig, the simulation work, projects, golden and CAD records and the ledger (loopback-only stdlib backend, Parameter Sky front-end, one launcher entry)"
 arch=('any')
 url="file:///usr/share/doc/aces-console"

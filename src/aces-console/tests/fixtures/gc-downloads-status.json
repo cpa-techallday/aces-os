@@ -1,0 +1,146 @@
+{
+ "updated": "2026-10-11T18:00:55",
+ "current": null,
+ "total": 23,
+ "completed": 23,
+ "items": [
+  {
+   "repo": "Qwen/Qwen3-Embedding-0.6B",
+   "pattern": "*",
+   "notes": "service: embeddings (all modes)",
+   "done": true
+  },
+  {
+   "repo": "Qwen/Qwen3-Reranker-4B",
+   "pattern": "*",
+   "notes": "service: reranker (cad/rag modes)",
+   "done": true
+  },
+  {
+   "repo": "Qwen/Qwen3.5-9B",
+   "pattern": "*",
+   "notes": "cad gen workers / batch farm / video director",
+   "done": true
+  },
+  {
+   "repo": "Qwen/Qwen3-Embedding-8B",
+   "pattern": "*",
+   "notes": "cad RAG + rag-training bulk embed",
+   "done": true
+  },
+  {
+   "repo": "Qwen/Qwen3-VL-Embedding-8B",
+   "pattern": "*",
+   "notes": "rag-training multimodal embed (drawings/PDF)",
+   "done": true
+  },
+  {
+   "repo": "google/gemma-4-12B-it",
+   "pattern": "*",
+   "notes": "rag-training QLoRA target + LTX encoder base",
+   "done": true
+  },
+  {
+   "repo": "QuantTrio/GLM-4.7-Flash-AWQ",
+   "pattern": "*",
+   "notes": "fleet cards 2+3, cad orchestrator (sym g128, trusted publisher)",
+   "done": true
+  },
+  {
+   "repo": "openai/gpt-oss-20b",
+   "pattern": "*",
+   "notes": "general-fleet card 7 tool-calling worker",
+   "done": true
+  },
+  {
+   "repo": "stepfun-ai/Step-3.5-Flash",
+   "pattern": "*",
+   "notes": "general-fleet card 5",
+   "done": true
+  },
+  {
+   "repo": "Lightricks/LTX-2.5",
+   "pattern": "diffusion_models/ltx-2.5-22b-distilled-transformer-bf16.safetensors",
+   "notes": "video-studio worker DiT",
+   "done": true
+  },
+  {
+   "repo": "Lightricks/LTX-2.5",
+   "pattern": "diffusion_models/ltx-2.5-22b-distilled-transformer-nvfp4.safetensors",
+   "notes": "darkness NVFP4 preview worker (sm_120 only)",
+   "done": true
+  },
+  {
+   "repo": "Lightricks/LTX-2.5",
+   "pattern": "latent_upscale_models/*",
+   "notes": "video-studio upscalers",
+   "done": true
+  },
+  {
+   "repo": "Lightricks/LTX-2.5",
+   "pattern": "text_encoders/gemma4-12b-with-proj-ltx-2.5-bf16.safetensors",
+   "notes": "video-studio CPU text encoder",
+   "done": true
+  },
+  {
+   "repo": "Lightricks/LTX-2.5",
+   "pattern": "vae/*",
+   "notes": "video-studio VAEs",
+   "done": true
+  },
+  {
+   "repo": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
+   "pattern": "*",
+   "notes": "general-fleet cards 0+1 (single copy, two instances)",
+   "done": true
+  },
+  {
+   "repo": "lowbitcoffee/GLM-5.2-W4A16",
+   "pattern": "*",
+   "notes": "general-flagship PP8 chain (~388 GB)",
+   "done": true
+  },
+  {
+   "repo": "unsloth/GLM-5.2-GGUF",
+   "pattern": "IQ2_XXS/*",
+   "notes": "flagship CPU deep-planner (ik_llama.cpp, ~238 GB)",
+   "done": true
+  },
+  {
+   "repo": "unsloth/GLM-5.2-GGUF",
+   "pattern": "UD-IQ2_XXS/*",
+   "notes": "CORRECTED: flagship CPU deep-planner (~238 GB)",
+   "done": true
+  },
+  {
+   "repo": "unsloth/GLM-5.2-GGUF",
+   "pattern": "Q3_K_M/*",
+   "notes": "hybrid-big-model CPU flagship (~343 GB)",
+   "done": true
+  },
+  {
+   "repo": "unsloth/GLM-5.2-GGUF",
+   "pattern": "UD-Q3_K_M/*",
+   "notes": "CORRECTED: hybrid-big-model CPU flagship (~343 GB)",
+   "done": true
+  },
+  {
+   "repo": "unsloth/DeepSeek-V4-Flash-0731-GGUF",
+   "pattern": "UD-Q4_K_XL/*",
+   "notes": "seller-config replica: 4x 170HX GPU-resident (144 GiB); A/B vs 2x122B PP2",
+   "done": true
+  },
+  {
+   "repo": "unsloth/DeepSeek-V4-Flash-0731-GGUF",
+   "pattern": "dspark/*",
+   "notes": "DSpark speculative draft head (10.5 GiB) \u2014 the 55-60 t/s trick",
+   "done": true
+  },
+  {
+   "repo": "vcruz305/DeepSeek-V4.1-Flash-GGUF",
+   "pattern": "DeepSeek-V4.1-Flash-Q3_K_M-*",
+   "notes": "deepseek41 arch CONFIRMED in ik_llama build; CPU deep-planner alt to GLM-5.2 (~323 GiB); eval after GLM smoke test",
+   "done": true
+  }
+ ]
+}

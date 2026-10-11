@@ -72,6 +72,21 @@ class FakeMlflow:
                 if path == "/api/2.0/mlflow/runs/search":
                     self._send(200, (fake.fixtures_dir / "mlflow-runs-search.json").read_bytes())
                     return
+                # the MLflow browser's captures (2026-10-11, the captured run only)
+                rid = (query.get("run_id") or query.get("run_uuid") or [""])[0]
+                if path == "/api/2.0/mlflow/metrics/get-history" and rid == CAPTURED_RUN and (query.get("metric_key") or [""])[0] == "h_mm":
+                    self._send(200, (fake.fixtures_dir / "mlflow-metric-history.json").read_bytes())
+                    return
+                if path == "/api/2.0/mlflow/artifacts/list" and rid == CAPTURED_RUN and not query.get("path"):
+                    self._send(200, (fake.fixtures_dir / "mlflow-artifacts-list.json").read_bytes())
+                    return
+                if path == "/get-artifact" and rid == CAPTURED_RUN and (query.get("path") or [""])[0] == "ccx.cvg":
+                    self._send(200, (fake.fixtures_dir / "mlflow-artifact-ccx.cvg").read_bytes(), "application/octet-stream")
+                    return
+                if path in ("/api/2.0/mlflow/metrics/get-history", "/api/2.0/mlflow/artifacts/list", "/get-artifact"):
+                    self._send(404, json.dumps({"error_code": "RESOURCE_DOES_NOT_EXIST",
+                                                "message": f"fake_mlflow stand-in: no 2026-10-11 capture for {path} {rid}"}).encode())
+                    return
                 self._send(404, json.dumps({"error_code": "ENDPOINT_NOT_FOUND", "message": f"fake_mlflow: no route {path}"}).encode())
 
             def do_POST(self) -> None:

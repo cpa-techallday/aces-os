@@ -46,7 +46,8 @@ class SystemRoutesTest(unittest.TestCase):
         ml = links["mlflow_console"]
         self.assertEqual((ml["url"], ml["reach"], ml["openable"]), ("http://127.0.0.1:5000", "rig-loopback", False))
         self.assertEqual((links["grid_control"]["url"], links["grid_control"]["reach"], links["grid_control"]["openable"]),
-                         (self.gc.url, "desktop-loopback", True), "a configured loopback address is this desktop's own")
+                         (self.gc.url, "desktop-loopback", False), "GRID CONTROL is replaced by this console: listed, not opened")
+        self.assertEqual(links["grid_control"]["replaced_by"], "Fabric, Ops and Agents plates")
         self.assertEqual(links["simlab_console"]["url"], self.fc.url)
         self.assertEqual((links["webodm"]["url"], links["webodm"]["reach"]), ("http://127.0.0.1:8090", "desktop-loopback"))
         self.assertEqual(system.reach_of("http://host.docker.internal:3200", True), ("rig-loopback", False, system.RIG_LOCAL_NOTE))

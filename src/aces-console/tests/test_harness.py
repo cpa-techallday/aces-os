@@ -120,8 +120,8 @@ class TestStaticTree(unittest.TestCase):
             self.assertIn(f'data-plate="{pid}"', html)
             self.assertIn(f'<symbol id="{sprite}"', html)
             self.assertIn(f'id="plate-{pid}"', html)
-        self.assertEqual(len(re.findall(r'role="tab"', html)), 7)
-        self.assertEqual(len(re.findall(r'role="tabpanel"', html)), 7)
+        self.assertEqual(len(re.findall(r'role="tab"', html)), 8)
+        self.assertEqual(len(re.findall(r'role="tabpanel"', html)), 8)
         scripts = re.findall(r"<script[^>]*>", html)
         self.assertEqual(sorted(scripts), sorted(['<script type="importmap">', '<script type="module" src="/static/app.js">']), "only the importmap is inline")
         self.assertIn('aria-live="polite"', html)
@@ -267,7 +267,7 @@ class TestDevServer(unittest.TestCase):
 
     def test_vocab_served(self):
         st, _, v = self.api("/vocab.json")
-        self.assertEqual(sorted(v["vocabularies"]), ["cad", "case", "console", "endpoint", "meta", "registry", "rq", "run"])
+        self.assertEqual(sorted(v["vocabularies"]), ["cad", "case", "console", "endpoint", "mc", "meta", "registry", "rq", "run"])
 
     def test_projects(self):
         st, _, r = self.api("/api/projects")
@@ -381,7 +381,7 @@ class TestVerifyUI(unittest.TestCase):
                 self.assertEqual(vp["requests_failed"], [])
                 self.assertTrue(vp["fixture_stamped"], vp.get("stamp"))
                 self.assertTrue(vp["tabs"]["all_seven"], vp["tabs"])
-                self.assertEqual(sorted(k for k in vp["plates"] if ":" not in k), sorted(["fabric", "projects", "pipeline", "solvers", "objects", "evidence", "ops"]))
+                self.assertEqual(sorted(k for k in vp["plates"] if ":" not in k), sorted(["fabric", "projects", "pipeline", "solvers", "objects", "evidence", "agents", "ops"]))
                 for plate, d in vp["plates"].items():
                     self.assertTrue(d["overflow"]["ok"], (vp["viewport"], plate, d["overflow"]))
                     self.assertEqual(d["vocab"]["unknown"], [], (vp["viewport"], plate))

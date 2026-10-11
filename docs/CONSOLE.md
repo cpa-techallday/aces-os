@@ -20,7 +20,7 @@ redis are never contacted.
 `pacman -S aces-console` (or `pacman -Su` on a desktop that has `aces-consoles`: the package carries
 `provides`/`conflicts`/`replaces` for it, so the upgrade asks "Replace aces-consoles with aces/aces-console?" and
 removes `aces-consoles` in the same transaction, whether or not `aces-consoles` is still in the repository; seen in
-a clean container on 2026-10-11). Afterwards `pacman -Q aces-consoles` still answers, with `aces-console 0.1.0-1`,
+a clean container on 2026-10-11). Afterwards `pacman -Q aces-consoles` still answers, with `aces-console 0.1.0-2`,
 because it resolves the `provides=`; `pacman -Qq | grep -x aces-consoles` is the by-name check. `aces-os` 0.1.0-7
 depends on `aces-console`. Files: `/usr/bin/aces-console`, the front-end under
 `/usr/share/aces/console/static`, the tests and the install check under `/usr/share/aces/console/tests`,
@@ -89,11 +89,12 @@ server replays captures.
 |---|---|---|
 | Fabric (`fabric`) | GRID CONTROL mode and queue (`-1` reported as "GRID CONTROL reported -1", never as a count), GPUs, telemetry ring, the rig-state snapshot with every service and endpoint classified against the mode's stop/keep lists, the fabric manifest and its age, modes | `rig.status`, `rig.telemetry`, `rig.snapshot`, `rig.modes`, `rig.decisions`, `fabric.manifest`, `sim.capacity` |
 | Work (`projects`) | the projects under `$ACES_WORK` with class, counts (golden runs, CAD runs, ledger entries), evidence, CAD sources, the Onshape gate as the class allows | `projects`, `/api/projects/{name}` |
-| Pipeline (`pipeline`) | the SIMLAB console's summary with its two scales side by side ("cases" on the console case scale, "queue jobs" on the rq job scale; they differ and are never merged), the queue by rq status and by meta state, the experiments, an experiment's stages, reports and cases, a case's params, results, files, jobs and MLflow run, the MLflow experiments, `whoami` | `sim.summary`, `sim.experiments`, `sim.capacity`, `sim.whoami`, `mlflow.experiments`, `/api/sim/experiments/{eid}`, `/api/sim/case/...`, `/api/mlflow/run/...` |
+| Pipeline (`pipeline`) | **SIMLAB actions**: every simlab-mcp tool (validate, put spec, put file, submit, sweep, cancel, status, results, reports, evidence) with a form built from the tool's own input schema, the write tools confirmed by typing their name; the **MLflow browser**: experiments, their runs with the latest metrics, a run's params, metrics with their history, tags and artifacts (listed and downloaded); the SIMLAB console's summary with its two scales side by side ("cases" on the console case scale, "queue jobs" on the rq job scale; they differ and are never merged), the queue by rq status and by meta state, the experiments, an experiment's stages, reports and cases, a case's params, results, files, jobs and MLflow run, the MLflow experiments, `whoami` | `sim.summary`, `sim.experiments`, `sim.capacity`, `sim.whoami`, `mlflow.experiments`, `/api/sim/experiments/{eid}`, `/api/sim/case/...`, `/api/mlflow/run/...` |
 | Solvers (`solvers`) | the solver registry with validation status on the registry scale, image ids ("not recorded" when absent), the citability note, lanes ("not recorded" unless the rig records one), GPU capacity with each GPU's activity, the sim modes beside GRID CONTROL's modes | `sim.registry`, `sim.capacity`, `rig.modes` |
 | Objects (`objects`) | a project's CAD runs (status on the CAD scale, unreadable runs with the reason), a run's record and files, drawings (SVG, dimensions, hole table), bundles with **Check bundle** (the installed `check_bundle.py`, its own lines) and **View part.stl** (the Three.js viewer), notes, the Onshape card (never connected from here) | `/api/cad/*`, `/api/projects` |
 | Evidence (`evidence`) | golden runs per project; a run's grade followed by "no grade is a sign-off", verdict, stages, validation, compute used, sweep, winner, figures, the report in a sandboxed iframe, **Verify** (`aces golden verify`, or the honest 503 when aces-engineering is absent), files, events, read errors; the desktop operator ledger with **Verify ledger**; the rig-side SIMLAB chain | `golden.runs`, `ledger.aces`, `ledger.simlab`, `sim.evidence`, `sim.evidence.verify`, `console.health` |
-| Ops (`ops`) | the switch (prepare, confirm), **Refresh fabric**, **Run doctor**, packages, desktop entries, links with their reach, **Stop console** | `rig.switch`, `rig.modes`, `doctor`, `system.packages`, `system.entries`, `/api/system/links` |
+| Agents (`agents`) | Mission Control as GRID CONTROL served it: the agent runs (live and recent) with their step timelines and artifacts, the chat sessions with a composer and attachments, the missions with their steps, outputs, approvals and actions (launch, retry failed, compile, mark done), a new-mission form, the agents. Agent-reported, never compute truth | `mc.runs`, `mc.missions`, `mc.sessions`, `mc.agents`, `/api/mc/*` |
+| Ops (`ops`) | the switch (prepare, confirm), the auto-switch (typed words), the red-team mission VM (status; start and end with typed words), model staging, **Refresh fabric**, **Run doctor**, packages, desktop entries, links with their reach (GRID CONTROL, the SIMLAB console and MLflow are listed but never opened: their content is on these plates), **Stop console** | `rig.switch`, `rig.modes`, `rig.redteam`, `rig.downloads`, `doctor`, `system.packages`, `system.entries`, `/api/system/links` |
 
 ### Reading rules
 
@@ -134,13 +135,32 @@ All writes go through `aces.ledger.record()` and verify with `aces ledger verify
 | `console.fabric.refresh` | **Refresh fabric** (`aces fabric refresh`, once per 60 s) |
 | `console.system.open` | **Open** of an allow-listed link or desktop entry (`{id, target_kind}`, never the URL) |
 | `console.server.stop` | **Stop console** |
+| `console.sim.tool` | a simlab-mcp write tool run from SIMLAB actions (`{tool, arg_keys, args_sha256, ok, error, experiment}`, never the arguments) |
+| `console.mc.session` / `console.mc.message` / `console.mc.mission` / `console.mc.approve` / `console.mc.upload` | Mission Control writes (counts and sha256 of the text, never the text) |
+| `console.redteam.vm` / `console.auto` | the red-team VM start or end, the auto-switch on or off |
 
-### Deferred in v1
+A write refused before it reaches the rig (no GRID CONTROL token on this desktop) is not an action and is not ledgered.
 
-Simlab submit/sweep/cancel from the UI (the rig's simlab-mcp runs with principal `anonymous` and policy `full`), CAD
-worker actions (inspect, render, drawing, pull, prune), starting golden runs, the auto-switch toggle (shown as recorded
-state only), Mission Control planes, approvals (a UI button is not an approval), LAN/VPN binding and the phone client,
-a systemd user unit, per-mode lanes from GRID CONTROL, a light theme.
+### Everything GRID CONTROL, the SIMLAB console and MLflow offered (2026-10-11, later the same day)
+
+Aaron: one UI with everything accessible, and not GRID CONTROL, the SIMLAB console and MLflow. So the console now
+carries their actions too: Mission Control (Agents plate), the simlab-mcp tools including submit, sweep and cancel and
+the MLflow browser (Pipeline plate), the auto-switch, the red-team VM and model staging (Ops plate). Their pages are
+listed as endpoints but never opened from here, and `aces-console grid_control|simlab_console|mlflow` opens this
+console at the plate that holds their content. Not copied: GRID CONTROL's "Connectors" page, a hard-coded list in its
+page source rather than a probed status.
+
+Reads of GRID CONTROL's token-protected routes work without a token on this desktop: they go through the SIMLAB
+console's GET-only `/gc` read proxy on the rig (which forwards with the rig's own token) and every reply says so.
+Writes (chats, missions, approvals, uploads, the red-team VM, the auto-switch, the mode switch) need the token on this
+desktop: `~/.config/aces/gridcontrol.env` with `ACES_GC_TOKEN=...`, mode 0600.
+
+### Still deferred
+
+CAD worker actions (inspect, render, drawing, pull, prune), starting golden runs, approvals of consequential actions
+(a UI button is not an approval: the aces.approvals overlay with a physical-presence factor), LAN/VPN binding and the
+phone client, a systemd user unit, per-mode lanes from GRID CONTROL, a light theme, ACES Studio (the video lane: no
+video service is deployed on the rig).
 
 ## API
 
@@ -230,6 +250,16 @@ sha256 `ETag` and 304 on `If-None-Match`.
 | `GET /api/system/packages` · `/api/system/entries` · `/api/system/links` | system | `pacman -Q` filtered to `aces-*`/`omarchy*`; the `.desktop` entries owned by `aces-*`; the allow-listed links with `reach` and `openable` | |
 | `POST /api/system/open` `{id}` | system | opens an allow-listed link or entry (ledgered `console.system.open`) | 403, 404 |
 | `POST /api/system/stop` `{confirm: "stop"}` | system | ledgers `console.server.stop`, says bye to the SSE clients, exits 0 | 400 without the exact string, 403 |
+| `GET /api/sim/tools` | sim | simlab-mcp `tools/list`: `{tools: [{name, description, input_schema, write}], write_tools}` | |
+| `POST /api/sim/tool/{name}` `{arguments, confirm?}` | sim | one `tools/call`; write tools need `confirm` equal to the tool name and are ledgered | 400, 404 unknown tool, 502 tool error |
+| `GET /api/mlflow/metric-history?run_id=&key=` | sim | `metrics/get-history` (at most 25000 points) | 400 |
+| `GET /api/mlflow/artifacts?run_id=&path=` | sim | `artifacts/list` | 400 |
+| `GET /api/mlflow/artifact?run_id=&path=` | sim | the artifact's bytes (`get-artifact`), sandboxed, 64 MiB cap | 400, 404, 413 |
+| `GET /api/mc/agents`, `/api/mc/runs?limit=`, `/api/mc/run/{id}`, `/api/mc/sessions`, `/api/mc/session/{id}`, `/api/mc/missions`, `/api/mc/mission/{id}` | mc | Mission Control reads (tRPC `agents.list`, `runs.list`, `runs.get`, `chat.listSessions`, `chat.getSession`, `missions.list`, `missions.get`); `via: token` or `proxy` | |
+| `POST /api/mc/session` `{title}`, `/api/mc/session/{id}/message` `{content, uploads}` | mc | `chat.createSession`, `chat.sendMessage`; ledgered | 503 without a token |
+| `POST /api/mc/mission` `{title, objective, files, launch}`, `/api/mc/mission/{id}/{launch,retryFailed,compile,complete}`, `/api/mc/item/{id}/approve` | mc | missions; ledgered | 400, 503 without a token |
+| `POST /api/mc/upload` `{filename, mime, data_b64}`; `GET /api/mc/upload/{id}`, `/api/mc/artifact/{id}` | mc | uploads (16 MiB) and their bytes, sandboxed | 400, 413, 503 |
+| `GET /api/rig/downloads`, `/api/rig/redteam`; `POST /api/rig/redteam/vm` `{action, confirm}`, `/api/rig/auto` `{enabled, confirm}` | mc | model staging, red-team status, the VM up/down (`start mission vm` / `END MISSION`), the auto-switch (`enable auto-switch` / `disable auto-switch`); ledgered | 400 wrong words, 503 without a token |
 
 ### SSE topics
 
@@ -239,7 +269,8 @@ table. Topics and the plates that subscribe: `rig.status`, `rig.switch`, `fabric
 plate; inline), `rig.modes` (fabric, ops, solvers), `rig.telemetry` (fabric), `rig.snapshot`, `rig.decisions` (fabric,
 ops), `sim.capacity` (fabric, pipeline, solvers), `sim.summary`, `sim.experiments`, `sim.whoami`, `mlflow.experiments`
 (pipeline), `sim.registry` (solvers), `sim.evidence`, `sim.evidence.verify`, `sim.audit`, `golden.runs`, `ledger.aces`,
-`ledger.simlab` (evidence), `projects` (projects), `doctor`, `system.packages`, `system.entries` (ops).
+`ledger.simlab` (evidence), `projects` (projects), `doctor`, `system.packages`, `system.entries`, `rig.redteam`,
+`rig.downloads` (ops), `mc.runs`, `mc.missions`, `mc.sessions`, `mc.agents` (agents).
 
 ## Development and verification
 

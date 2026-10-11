@@ -312,6 +312,13 @@ def _peek_data(app: server.App, topic: str) -> Any:
     return e.data if isinstance(e.data, dict) else None
 
 
+# the separate consoles the ACES console replaces (Aaron, 2026-10-11): their content lives on these plates now, so
+# they are listed as endpoints (health, provenance) but never opened from here
+REPLACED_BY = {"grid_control": "Fabric, Ops and Agents plates", "mc_console": "Agents plate",
+               "simlab_console": "Pipeline, Solvers and Evidence plates", "mlflow": "Pipeline plate (MLflow browser)",
+               "mlflow_console": "Pipeline plate (MLflow browser)"}
+
+
 def fetch_links(app: server.App):
     status = _peek_data(app, "rig.status")
     summary = _peek_data(app, "sim.summary")
@@ -320,8 +327,9 @@ def fetch_links(app: server.App):
 
     def add(id_: str, label: str, url: Any, reported_by_rig: bool, source: str) -> None:
         reach, openable, note = reach_of(url, reported_by_rig)
+        replaced = REPLACED_BY.get(id_)
         rows.append({"id": id_, "label": label, "url": url if isinstance(url, str) else None, "reach": reach,
-                     "openable": openable, "note": note, "source": source})
+                     "openable": openable and not replaced, "note": note, "source": source, "replaced_by": replaced})
 
     add("mc_console", "Mission Control console (as GRID CONTROL reports it)", (status or {}).get("mc_console"), True,
         "GRID CONTROL /api/status" if status else "GRID CONTROL /api/status (not available)")

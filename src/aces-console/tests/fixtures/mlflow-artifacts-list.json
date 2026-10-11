@@ -1,0 +1,55 @@
+{
+  "root_uri": "mlflow-artifacts:/11/97cfbb614b98494b8d3aaa63e46cfd9e/artifacts",
+  "files": [
+    {
+      "path": "ccx.cvg",
+      "is_dir": false,
+      "file_size": 274
+    },
+    {
+      "path": "ccx.dat.gz",
+      "is_dir": false,
+      "file_size": 6253840
+    },
+    {
+      "path": "ccx.inp.gz",
+      "is_dir": false,
+      "file_size": 2877143
+    },
+    {
+      "path": "ccx.log",
+      "is_dir": false,
+      "file_size": 2265
+    },
+    {
+      "path": "ccx.sta",
+      "is_dir": false,
+      "file_size": 170
+    },
+    {
+      "path": "conforming.json",
+      "is_dir": false,
+      "file_size": 9168
+    },
+    {
+      "path": "evidence.json",
+      "is_dir": false,
+      "file_size": 9831
+    },
+    {
+      "path": "mesh.log",
+      "is_dir": false,
+      "file_size": 20366
+    },
+    {
+      "path": "mesh.npz",
+      "is_dir": false,
+      "file_size": 4586032
+    },
+    {
+      "path": "tetmesh.json",
+      "is_dir": false,
+      "file_size": 1644
+    }
+  ]
+}

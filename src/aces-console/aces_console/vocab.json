@@ -1,88 +1,191 @@
 {
- "schema": "aces-console.vocab/1",
- "frozen": "2026-10-11",
- "note": "Status vocabularies and the Four Inks Rule (build spec 4.4). Each vocabulary is a different scale from a different source and is never merged with another; the front-end prints the vocabulary label beside every status word. Inks are the Parameter Sky tokens: chalk = exists/neutral, cyan = live now, amber = acts/mode/eye (anything a person did or must do, mode names, pending text, STALE, FIXTURE), fault (red-orange) = only the faulted thing. There is no green: unprobed is never green, and a finished or pass state is chalk with a check glyph.",
- "inks": ["chalk", "cyan", "amber", "fault"],
- "unknown_word_ink": "chalk",
- "vocabularies": {
-  "console": {
-   "label": "console",
-   "source": "cudax simlab/console/app.py:161-175 (case status)",
-   "chalk": ["PENDING", "FINISHED"],
-   "cyan": ["RUNNING"],
-   "amber": ["STALE"],
-   "fault": ["FAILED"]
+  "schema": "aces-console.vocab/1",
+  "frozen": "2026-10-11",
+  "note": "Status vocabularies and the Four Inks Rule (build spec 4.4). Each vocabulary is a different scale from a different source and is never merged with another; the front-end prints the vocabulary label beside every status word. Inks are the Parameter Sky tokens: chalk = exists/neutral, cyan = live now, amber = acts/mode/eye (anything a person did or must do, mode names, pending text, STALE, FIXTURE), fault (red-orange) = only the faulted thing. There is no green: unprobed is never green, and a finished or pass state is chalk with a check glyph.",
+  "inks": [
+    "chalk",
+    "cyan",
+    "amber",
+    "fault"
+  ],
+  "unknown_word_ink": "chalk",
+  "vocabularies": {
+    "console": {
+      "label": "console",
+      "source": "cudax simlab/console/app.py:161-175 (case status)",
+      "chalk": [
+        "PENDING",
+        "FINISHED"
+      ],
+      "cyan": [
+        "RUNNING"
+      ],
+      "amber": [
+        "STALE"
+      ],
+      "fault": [
+        "FAILED"
+      ]
+    },
+    "rq": {
+      "label": "rq",
+      "source": "cudax simlab/queue.py:185-201 (rq job status)",
+      "chalk": [
+        "queued",
+        "deferred",
+        "scheduled",
+        "finished",
+        "unknown"
+      ],
+      "cyan": [
+        "started"
+      ],
+      "amber": [
+        "canceled",
+        "stopped"
+      ],
+      "fault": [
+        "failed"
+      ]
+    },
+    "meta": {
+      "label": "meta",
+      "source": "cudax simlab/queue.py:79-129 (job meta state)",
+      "chalk": [
+        "queued",
+        "waiting_for_gpu",
+        "finished"
+      ],
+      "cyan": [
+        "running"
+      ],
+      "amber": [
+        "cancelled"
+      ],
+      "fault": [
+        "failed"
+      ]
+    },
+    "run": {
+      "label": "run",
+      "source": "src/aces-engineering/lib/aces_engineering/golden/__init__.py:59-62 (golden run status)",
+      "chalk": [
+        "done"
+      ],
+      "cyan": [
+        "running"
+      ],
+      "amber": [
+        "interrupted"
+      ],
+      "fault": [
+        "error"
+      ]
+    },
+    "case": {
+      "label": "case",
+      "source": "src/aces-engineering/lib/aces_engineering/golden/__init__.py:50-62 (golden case and design outcome)",
+      "chalk": [
+        "FINISHED",
+        "NOT_RUN"
+      ],
+      "cyan": [],
+      "amber": [],
+      "fault": [
+        "FAILED"
+      ]
+    },
+    "cad": {
+      "label": "cad",
+      "source": "src/aces-cad/aces_cad/store.py:481-494 (CAD run status; unreadable is the console's own word for a run.json it cannot read)",
+      "chalk": [
+        "ok"
+      ],
+      "cyan": [
+        "running"
+      ],
+      "amber": [],
+      "fault": [
+        "error",
+        "unreadable"
+      ]
+    },
+    "endpoint": {
+      "label": "endpoint",
+      "source": "aces_console/rig.py classify() (rig-state services and endpoints against the mode's stop/keep/rest lists; build spec 3.4 and 4.4)",
+      "chalk": [
+        "by-design",
+        "stopped by mode <mode> (by design)"
+      ],
+      "cyan": [
+        "reachable"
+      ],
+      "amber": [
+        "transition",
+        "switching to <target>"
+      ],
+      "fault": [
+        "unreachable",
+        "unreachable (not explained by mode <mode>)",
+        "unreachable (not explained by mode)"
+      ],
+      "words_note": "each ink lists the vocabulary word and the sentence the backend prints for it (classification rows carry both as word and verdict); the page renders the sentence, so the sentence patterns (<mode>, <target> match any text) belong to the ink too",
+      "sentences": {
+        "by-design": "stopped by mode <mode> (by design)",
+        "reachable": "reachable",
+        "transition": "switching to <target>",
+        "unreachable": "unreachable (not explained by mode <mode>)"
+      }
+    },
+    "registry": {
+      "label": "registry",
+      "source": "build spec 3.6 (solver registry validation.status; lane 'not recorded' when queue is null)",
+      "chalk": [
+        "pass",
+        "not recorded"
+      ],
+      "cyan": [],
+      "amber": [],
+      "fault": [
+        "fail"
+      ]
+    },
+    "mc": {
+      "label": "mc",
+      "name": "Mission Control (agent-reported)",
+      "source": "GRID CONTROL /api/mc/trpc runs.list, missions.list, missions.get (agent-reported, never compute truth)",
+      "chalk": [
+        "succeeded",
+        "done",
+        "cancelled",
+        "pending",
+        "passed",
+        "none",
+        "enabled",
+        "disabled"
+      ],
+      "cyan": [
+        "running"
+      ],
+      "amber": [
+        "queued",
+        "planning",
+        "planned",
+        "review"
+      ],
+      "fault": [
+        "failed",
+        "exhausted",
+        "error"
+      ]
+    }
   },
-  "rq": {
-   "label": "rq",
-   "source": "cudax simlab/queue.py:185-201 (rq job status)",
-   "chalk": ["queued", "deferred", "scheduled", "finished", "unknown"],
-   "cyan": ["started"],
-   "amber": ["canceled", "stopped"],
-   "fault": ["failed"]
-  },
-  "meta": {
-   "label": "meta",
-   "source": "cudax simlab/queue.py:79-129 (job meta state)",
-   "chalk": ["queued", "waiting_for_gpu", "finished"],
-   "cyan": ["running"],
-   "amber": ["cancelled"],
-   "fault": ["failed"]
-  },
-  "run": {
-   "label": "run",
-   "source": "src/aces-engineering/lib/aces_engineering/golden/__init__.py:59-62 (golden run status)",
-   "chalk": ["done"],
-   "cyan": ["running"],
-   "amber": ["interrupted"],
-   "fault": ["error"]
-  },
-  "case": {
-   "label": "case",
-   "source": "src/aces-engineering/lib/aces_engineering/golden/__init__.py:50-62 (golden case and design outcome)",
-   "chalk": ["FINISHED", "NOT_RUN"],
-   "cyan": [],
-   "amber": [],
-   "fault": ["FAILED"]
-  },
-  "cad": {
-   "label": "cad",
-   "source": "src/aces-cad/aces_cad/store.py:481-494 (CAD run status; unreadable is the console's own word for a run.json it cannot read)",
-   "chalk": ["ok"],
-   "cyan": ["running"],
-   "amber": [],
-   "fault": ["error", "unreadable"]
-  },
-  "endpoint": {
-   "label": "endpoint",
-   "source": "aces_console/rig.py classify() (rig-state services and endpoints against the mode's stop/keep/rest lists; build spec 3.4 and 4.4)",
-   "chalk": ["by-design", "stopped by mode <mode> (by design)"],
-   "cyan": ["reachable"],
-   "amber": ["transition", "switching to <target>"],
-   "fault": ["unreachable", "unreachable (not explained by mode <mode>)", "unreachable (not explained by mode)"],
-   "words_note": "each ink lists the vocabulary word and the sentence the backend prints for it (classification rows carry both as word and verdict); the page renders the sentence, so the sentence patterns (<mode>, <target> match any text) belong to the ink too",
-   "sentences": {
-    "by-design": "stopped by mode <mode> (by design)",
-    "reachable": "reachable",
-    "transition": "switching to <target>",
-    "unreachable": "unreachable (not explained by mode <mode>)"
-   }
-  },
-  "registry": {
-   "label": "registry",
-   "source": "build spec 3.6 (solver registry validation.status; lane 'not recorded' when queue is null)",
-   "chalk": ["pass", "not recorded"],
-   "cyan": [],
-   "amber": [],
-   "fault": ["fail"]
-  }
- },
- "rules": [
-  "detected_mode == \"transition\" and any switching object are amber",
-  "a GPU that rests (the mode's rest list) is chalk",
-  "a queue count of -1 is chalk text (\"queue count not reported: GRID CONTROL reported -1\"), never red",
-  "STALE and FIXTURE stamps are amber",
-  "no grade is a sign-off: every golden grade line carries that sentence",
-  "a status word not in its vocabulary is drawn in chalk with the word itself"
- ]
+  "rules": [
+    "detected_mode == \"transition\" and any switching object are amber",
+    "a GPU that rests (the mode's rest list) is chalk",
+    "a queue count of -1 is chalk text (\"queue count not reported: GRID CONTROL reported -1\"), never red",
+    "STALE and FIXTURE stamps are amber",
+    "no grade is a sign-off: every golden grade line carries that sentence",
+    "a status word not in its vocabulary is drawn in chalk with the word itself"
+  ]
 }
