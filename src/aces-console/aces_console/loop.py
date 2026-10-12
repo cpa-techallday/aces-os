@@ -1,7 +1,7 @@
 """The engineering loop: a conversational thread that turns a plain-language request into a visible plan,
 editable golden spec drafts, and — only after explicit confirmation — a real `aces golden run` job.
 
-The playbook is deterministic: constraint parsing is unit-pattern based (kg, N, g, °C, m/s, mm), physics are
+The playbook is deterministic: constraint parsing is unit-pattern based (kg, N, g, °C, m/s, km/h, mph, mm), physics are
 inferred from named keywords, and the spec draft is an `aces-golden-spec/1` skeleton whose unfilled fields are
 named in `missing`. The agent never invents geometry: a draft without a design space says so and names the
 accepted sources (a STEP upload, a built-in demo, an existing project). Runs go through the same one-at-a-time
@@ -94,9 +94,19 @@ def parse_request(text: str) -> dict[str, Any]:
     m = re.search(rf"(?:under|below|max|<=?)\s*{NUM}\s*(?:°c|degc|c\b)", t)
     if m:
         c["max_temp_C"] = float(m.group(1))
-    m = re.search(rf"\b{NUM}\s*m/s\b", t)
-    if m:
-        c["velocity_ms"] = float(m.group(1))
+    # velocity: m/s canonical, km/h and mph converted; the raw number and unit are recorded alongside
+    m, unit = re.search(rf"\b{NUM}\s*m/s\b", t), "m/s"
+    if m is None:
+        m, unit = re.search(rf"\b{NUM}\s*km/?h\b", t), "km/h"
+    if m is None:
+        m, unit = re.search(rf"\b{NUM}\s*mph\b", t), "mph"
+    if m is not None:
+        raw = float(m.group(1))
+        c["velocity_ms"] = raw if unit == "m/s" else (raw / 3.6 if unit == "km/h" else raw * 0.44704)
+        c["velocity_unit"] = unit
+        c["velocity_raw"] = raw
+    if re.search(r"\bwater\b", t):
+        c["flow_medium"] = "water"   # golden's flow block defaults to air; only water is named explicitly
     m = re.search(rf"\b{NUM}\s*kwh\b", t)
     if m:
         c["battery_kWh"] = float(m.group(1))
@@ -112,7 +122,7 @@ def parse_request(text: str) -> dict[str, Any]:
         out["physics"].add("structures")
     if "max_temp_C" in c or "cooling" in t or "thermal" in t or "heat" in t:
         out["physics"].add("thermal")
-    if "velocity_ms" in c or "drag" in t or "airflow" in t or "aero" in t:
+    if "velocity_ms" in c or "drag" in t or "airflow" in t or "aero" in t or "flow_medium" in c:
         out["physics"].add("cfd")
     if any(w in t for w in ("antenna", "radar", "rf", "s11", "gain db")):
         out["physics"].add("em")
@@ -123,11 +133,47 @@ def parse_request(text: str) -> dict[str, Any]:
 
 
 WIRED = {"structures": "golden (SIMP sweep → surrogate optimise → verified FEA; ccx conforming check validated 2026-10-10)",
-         "cfd": "PyFR 3.1 on the rig — golden stage cfd (flow: block → templated case → rig dispatch) wired 2026-10-12; loop drafts don't carry flow blocks yet (Tier 1)",
+         "cfd": "PyFR 3.1 on the rig — golden stage cfd (flow: block → templated case → rig dispatch) wired 2026-10-12; loop drafts carry the flow block when a speed is named (Tier 1)",
          "thermal": "CalculiX steady-state thermal — adapter not written yet (Tier 1)",
          "em": "Palace / gprMax EM (aces-tile-em) — registered on the rig, wr90_through rig smoke PASS 2026-10-12; loop dispatch not wired yet (Tier 1)"}
-# what the loop can actually run today: structures only. Everything else is named and tracked, never promised.
+# what the loop can actually run today: structures, and cfd when the flow block is fully known (a speed under the
+# incompressible gate). Everything else is named and tracked, never promised.
 LOOP_WIRED = {"structures"}
+
+
+def _flow_refusal(velocity_mps: float, medium: str) -> str | None:
+    """The refusal golden's Flow._incompressible (aces-engineering golden/spec.py) gives for this flow block, or None
+    when golden would accept it. aces-engineering is not a console dependency, so the validator's message is mirrored
+    here byte-identically — if golden's message changes, change this one too."""
+    if medium == "air" and velocity_mps > 100.0:
+        return (f"flow.velocity_mps: {velocity_mps:g} m/s in air is Mach "
+                f"~{velocity_mps / 343.0:.2f}; ac-navier-stokes is incompressible, so a drag "
+                "number past ~100 m/s (Mach 0.3) would be fiction — this tier refuses it")
+    return None
+
+
+def _cfd_item(req: dict[str, Any], kind: str) -> dict[str, Any]:
+    """The cfd plan item: wired only when the flow block golden needs is fully known (a speed, and one the
+    incompressible tier accepts); otherwise tracked with a reason naming exactly what is missing."""
+    c = req["constraints"]
+    v = c.get("velocity_ms")
+    medium = c.get("flow_medium", "air")
+    item: dict[str, Any] = {"key": f"{kind}-cfd", "title": f"{kind} — cfd", "physics": ["cfd"],
+                            "answers": "drag / pressure drop / max velocity"}
+    if v is None:
+        item.update(wired=False, reason="name a speed to run CFD (e.g. “30 m/s”, “120 km/h”, “65 mph”) — "
+                                        "the golden cfd stage is wired but its flow block needs a velocity — tracked")
+        return item
+    refusal = _flow_refusal(v, medium)
+    if refusal is not None:
+        item.update(wired=False, reason=f"incompressible tier refuses air over 100 m/s — {refusal} — tracked")
+        return item
+    shown = c.get("velocity_raw", v)
+    unit = c.get("velocity_unit", "m/s")
+    item.update(wired=True, reason=WIRED["cfd"],
+                flow={"velocity_mps": v, "medium": medium,
+                      "_as_said": f"{shown:g} {unit}" + ("" if unit == "m/s" else f" = {v:g} m/s")})
+    return item
 
 
 def build_plan(req: dict[str, Any]) -> dict[str, Any]:
@@ -167,11 +213,14 @@ def build_plan(req: dict[str, Any]) -> dict[str, Any]:
                       "physics": ["structures"],
                       "answers": "mass, stiffness, stress margin" + (", lightest candidate" if req["objective_light"] else ""),
                       "wired": True})
-        # non-structural physics the request named: tracked items, honestly marked
+        # non-structural physics the request named: wired when the loop can truly run it, tracked items otherwise
         for p in physics:
             if p in LOOP_WIRED or p in UNWIRED_PHYSICS:
                 continue
-            answers = {"thermal": "temperature rise and thermal margin", "cfd": "drag / pressure drop / max velocity",
+            if p == "cfd":
+                items.append(_cfd_item(req, kind))
+                continue
+            answers = {"thermal": "temperature rise and thermal margin",
                        "em": "gain, S11, RF performance"}.get(p, p)
             items.append({"key": f"{kind}-{p}", "title": f"{kind} — {p}", "physics": [p], "answers": answers,
                           "wired": False, "reason": WIRED.get(p, f"{p} is not wired yet")})
@@ -215,9 +264,21 @@ def spec_draft(req: dict[str, Any], item: dict[str, Any], slug: str) -> dict[str
     spec["supports"] = []
     missing.append("supports: where is it held/bolted? (needs the design space)")
     missing.append("domain: the design space — attach a STEP, pick a demo (root-mount, bone), or name an envelope in mm")
+    if item.get("wired") and item.get("physics") == ["cfd"]:
+        # a wired cfd item carries its flow block into the draft so confirm-to-run dispatches golden's cfd stage;
+        # refuse at draft time — with golden's own validator message — rather than hand out a doomed draft
+        v = c.get("velocity_ms")
+        medium = c.get("flow_medium", "air")
+        if v is None:
+            raise ValueError("a wired cfd draft needs a parsed velocity: name a speed to run CFD")
+        refusal = _flow_refusal(v, medium)
+        if refusal is not None:
+            raise ValueError(refusal)
+        spec["flow"] = {"velocity_mps": v, "medium": medium}
     spec["_missing"] = missing
     spec["_constraints_not_in_structural_spec"] = {
-        k: v for k, v in c.items() if k in ("max_temp_C", "velocity_ms", "battery_kWh")}
+        k: v for k, v in c.items()
+        if k in ("max_temp_C", "velocity_ms", "battery_kWh") and not (k == "velocity_ms" and "flow" in spec)}
     return spec
 
 
@@ -365,9 +426,12 @@ def h_plan_approve(req: Request) -> Response:
                 return error(400, f"plan has no item {key!r}", "bad-request")
             if not item["wired"]:
                 return error(409, f"item {key!r} is not wired ({item.get('reason', 'unwired')}); it cannot produce a spec draft", "unwired")
-            drafts[key] = spec_draft(parsed or {"constraints": {}, "physics": {"structures"}, "kind": key,
-                                                "material": None, "objective_light": False},
-                                     item, slug=f"{tid[2:]}-{key}")
+            try:
+                drafts[key] = spec_draft(parsed or {"constraints": {}, "physics": {"structures"}, "kind": key,
+                                                    "material": None, "objective_light": False},
+                                         item, slug=f"{tid[2:]}-{key}")
+            except ValueError as e:
+                return error(409, f"item {key!r} cannot produce a runnable draft: {e}", "draft-refused")
         th["drafts"].update(drafts)
         th["messages"].append(_msg("loop", "drafts", f"Spec drafts ready for: {', '.join(drafts)}. "
                                    "Each lists what is still missing (usually the design space); edit and confirm to run.",
