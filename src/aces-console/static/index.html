@@ -7,6 +7,7 @@
 <title>ACES</title>
 <link rel="stylesheet" href="/static/styles.css">
 <link rel="stylesheet" href="/static/console.css">
+<link rel="stylesheet" href="/static/thread.css">
 <script type="importmap">{"imports":{"three":"/static/vendor/three.module.js","three/addons/controls/OrbitControls.js":"/static/vendor/OrbitControls.js"}}</script>
 </head>
 <body>
@@ -66,7 +67,8 @@
 <div class="atlas" id="atlas">
   <nav class="index rail" id="rail" aria-label="Plates">
     <ul class="plates" id="plateList" role="tablist" aria-orientation="vertical">
-      <li><button role="tab" id="tab-fabric" data-plate="fabric" aria-selected="true" aria-controls="plate-fabric" tabindex="0" title="Fabric" aria-label="Fabric"><svg class="ic"><use href="#i-fleet"/></svg><span class="nm">Fabric</span></button></li>
+      <li><button role="tab" id="tab-thread" data-plate="thread" aria-selected="true" aria-controls="plate-thread" tabindex="0" title="Thread" aria-label="Thread"><svg class="ic"><use href="#i-chat"/></svg><span class="nm">Thread</span></button></li>
+      <li><button role="tab" id="tab-fabric" data-plate="fabric" aria-selected="false" aria-controls="plate-fabric" tabindex="-1" title="Fabric" aria-label="Fabric"><svg class="ic"><use href="#i-fleet"/></svg><span class="nm">Fabric</span></button></li>
       <li><button role="tab" id="tab-projects" data-plate="projects" aria-selected="false" aria-controls="plate-projects" tabindex="-1" title="Projects" aria-label="Projects"><svg class="ic"><use href="#i-projects"/></svg><span class="nm">Projects</span></button></li>
       <li><button role="tab" id="tab-pipeline" data-plate="pipeline" aria-selected="false" aria-controls="plate-pipeline" tabindex="-1" title="Pipeline" aria-label="Pipeline"><svg class="ic"><use href="#i-pipeline"/></svg><span class="nm">Pipeline</span></button></li>
       <li><button role="tab" id="tab-solvers" data-plate="solvers" aria-selected="false" aria-controls="plate-solvers" tabindex="-1" title="Solvers" aria-label="Solvers"><svg class="ic"><use href="#i-solvers"/></svg><span class="nm">Solvers</span></button></li>
@@ -78,7 +80,11 @@
   </nav>
 
   <main class="plate-area" id="plate-area" tabindex="-1">
-    <section class="plate" id="plate-fabric" data-plate="fabric" role="tabpanel" aria-labelledby="fabricTitle">
+    <section class="plate" id="plate-thread" data-plate="thread" role="tabpanel" aria-labelledby="threadTitle">
+      <div class="plate-head"><h2 class="plate-title" id="threadTitle">Thread <span class="coord mono" id="coord-thread"></span></h2></div>
+      <div class="plate-body" id="body-thread"></div>
+    </section>
+    <section class="plate" id="plate-fabric" data-plate="fabric" role="tabpanel" aria-labelledby="fabricTitle" hidden>
       <div class="plate-head"><h2 class="plate-title" id="fabricTitle">Fabric <span class="coord mono" id="coord-fabric"></span></h2></div>
       <div class="plate-body" id="body-fabric"></div>
     </section>

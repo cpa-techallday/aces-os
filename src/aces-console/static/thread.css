@@ -1,0 +1,135 @@
+/* Thread plate: the conversation home. Scoped to the thread plate so the eight plates keep their own styles.
+   Visual language: calm dark surface, cards not ledger rows, plain words, one accent (cyan) reserved for the
+   agent's voice and live truth. */
+
+.plate[data-plate="thread"] .plate-body {
+  padding: 0;
+}
+
+.t-wrap {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 108px); /* strip + foot */
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 18px 20px 14px;
+  gap: 12px;
+}
+
+.t-head { display: flex; flex-direction: column; gap: 8px; }
+
+.t-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #e8f1fa;
+}
+
+.truth { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.t-bit {
+  font-size: 12.5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #1d3350;
+  background: #0b1a2e;
+  color: #9fb6cf;
+}
+.t-bit.ok   { color: #7dd8b0; border-color: #1d4a3a; background: #0a2018; }
+.t-bit.warn { color: #e8c472; border-color: #4a3a1d; background: #20180a; }
+.t-bit.bad  { color: #f08a8a; border-color: #4a1d1d; background: #200a0a; }
+.t-bit.dim  { color: #6d8199; }
+
+.t-log {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 6px 4px 6px 0;
+}
+
+.t-empty { text-align: center; margin: auto; padding: 40px 24px; max-width: 560px; }
+.t-empty-title { font-size: 20px; font-weight: 600; color: #dbe7f3; margin-bottom: 10px; }
+.t-empty-body  { font-size: 14.5px; line-height: 1.6; color: #8aa0b8; }
+
+.t-msg { display: flex; flex-direction: column; gap: 4px; max-width: 82%; }
+
+.t-msg.user {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+.t-msg.user .t-body {
+  background: #123352;
+  border: 1px solid #1e4a73;
+  color: #e8f1fa;
+  border-radius: 14px 14px 4px 14px;
+}
+
+.t-msg.agent { align-self: flex-start; }
+.t-msg.agent .t-body {
+  background: #0d2036;
+  border: 1px solid #173352;
+  color: #dbe7f3;
+  border-radius: 14px 14px 14px 4px;
+}
+
+.t-who {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6d8199;
+  padding: 0 6px;
+}
+
+.t-body {
+  padding: 12px 16px;
+  font-size: 14.5px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.t-thinking { color: #7fb6d9; font-style: italic; }
+
+.t-composer {
+  border: 1px solid #1d3350;
+  background: #0b1a2e;
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.t-composer textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 62px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e8f1fa;
+  font: inherit;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+.t-composer textarea::placeholder { color: #587089; }
+
+.t-composer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.t-composer-row .t-files { display: flex; gap: 6px; flex-wrap: wrap; }
+.t-composer-row .t-state { font-size: 12px; color: #e8c472; flex: 1; }
+.t-composer-row .t-state:empty { display: none; }
+.t-send { margin-left: auto; }
+.t-composer-row .t-state:not(:empty) { flex: 0 1 auto; }
+.t-composer-row .t-files { flex: 1; }
+
+@media (max-width: 720px) {
+  .t-wrap { padding: 12px 12px 10px; height: calc(100vh - 96px); }
+  .t-msg { max-width: 94%; }
+  .t-title { font-size: 18px; }
+}

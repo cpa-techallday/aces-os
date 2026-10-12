@@ -116,12 +116,12 @@ class TestStaticTree(unittest.TestCase):
     def test_index_shell(self):
         with open(os.path.join(STATIC, "index.html"), encoding="utf-8") as fh:
             html = fh.read()
-        for pid, sprite in (("fabric", "i-fleet"), ("projects", "i-projects"), ("pipeline", "i-pipeline"), ("solvers", "i-solvers"), ("objects", "i-objects"), ("evidence", "i-evidence"), ("ops", "i-ops")):
+        for pid, sprite in (("thread", "i-chat"), ("fabric", "i-fleet"), ("projects", "i-projects"), ("pipeline", "i-pipeline"), ("solvers", "i-solvers"), ("objects", "i-objects"), ("evidence", "i-evidence"), ("agents", "i-agents"), ("ops", "i-ops")):
             self.assertIn(f'data-plate="{pid}"', html)
             self.assertIn(f'<symbol id="{sprite}"', html)
             self.assertIn(f'id="plate-{pid}"', html)
-        self.assertEqual(len(re.findall(r'role="tab"', html)), 8)
-        self.assertEqual(len(re.findall(r'role="tabpanel"', html)), 8)
+        self.assertEqual(len(re.findall(r'role="tab"', html)), 9)
+        self.assertEqual(len(re.findall(r'role="tabpanel"', html)), 9)
         scripts = re.findall(r"<script[^>]*>", html)
         self.assertEqual(sorted(scripts), sorted(['<script type="importmap">', '<script type="module" src="/static/app.js">']), "only the importmap is inline")
         self.assertIn('aria-live="polite"', html)

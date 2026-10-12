@@ -7,8 +7,8 @@ import { vocab } from "./lib/vocab.js";
 import { format } from "./lib/format.js";
 import { dom, el, clear } from "./lib/dom.js";
 
-const PLATES = ["fabric", "projects", "pipeline", "solvers", "objects", "evidence", "agents", "ops"];
-const NAMES = { fabric: "Fabric", projects: "Projects", pipeline: "Pipeline", solvers: "Solvers", objects: "Objects", evidence: "Evidence", agents: "Agents", ops: "Ops" };
+const PLATES = ["thread", "fabric", "projects", "pipeline", "solvers", "objects", "evidence", "agents", "ops"];
+const NAMES = { thread: "Thread", fabric: "Fabric", projects: "Projects", pipeline: "Pipeline", solvers: "Solvers", objects: "Objects", evidence: "Evidence", agents: "Agents", ops: "Ops" };
 const STRIP_TOPICS = new Set(["rig.status", "rig.switch", "fabric.manifest", "console.health"]);
 const $ = (id) => document.getElementById(id);
 
@@ -127,7 +127,7 @@ const inspector = {
 // ---------- routing ----------
 function plateFromURL() {
   const p = new URLSearchParams(location.search).get("plate");
-  return PLATES.includes(p) ? p : "fabric";
+  return PLATES.includes(p) ? p : "thread";
 }
 
 function selectTab(id) {
@@ -195,7 +195,7 @@ async function mountPlate(id) {
 }
 
 async function showPlate(id, { push = true, params = null } = {}) {
-  if (!PLATES.includes(id)) id = "fabric";
+  if (!PLATES.includes(id)) id = "thread";
   if (push) {
     const u = new URL(location.href);
     u.search = "";
