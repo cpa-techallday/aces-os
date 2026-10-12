@@ -358,10 +358,18 @@ def dispatch(client: Any, *, cfd_dir: Path, doc: dict, exp_id: str, principal: s
         counts = st.get("counts") or {}
         jobs = st.get("jobs") or []
         if jobs:
-            case_state = str(jobs[0].get("state") or case_state)
-            job_error = str(jobs[0].get("error") or job_error)
+            # the case's verdict is over ALL its stage jobs (mesh, then solve): any failed job fails the case,
+            # every job finished means finished, anything else is still running — jobs[0] is just the mesh stage
+            states = [str(j.get("state") or "") for j in jobs]
+            failed_errs = [str(j.get("error")) for j, s in zip(jobs, states) if s == "failed" and j.get("error")]
+            if failed_errs:
+                job_error = failed_errs[-1]
+            elif not job_error:
+                job_error = str(jobs[0].get("error") or "")
+            case_state = "failed" if "failed" in states else ("finished" if all(s == "finished" for s in states)
+                                                              else "running")
         done = int(counts.get("finished") or 0) + int(counts.get("failed") or 0)
-        if done >= 1 or case_state in ("finished", "failed"):
+        if case_state in ("finished", "failed") or (not jobs and done >= 1):
             break
         time.sleep(poll_s)
     else:

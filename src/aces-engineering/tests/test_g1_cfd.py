@@ -171,10 +171,11 @@ from aces_engineering.golden import rig as rig_mod  # noqa: E402
 class FakeRig:
     """The RigClient surface golden.cfd.dispatch uses, scripted: sim_status answers in order."""
 
-    def __init__(self, statuses=(), files=None, fail_on=None):
+    def __init__(self, statuses=(), files=None, fail_on=None, default=None):
         self.statuses = list(statuses)
         self.files = files or {}
         self.fail_on = fail_on
+        self.default = default or {"counts": {"finished": 1, "failed": 0}, "jobs": [{"state": "finished"}]}
         self.uploads = []
         self.submitted = None
 
@@ -200,7 +201,7 @@ class FakeRig:
         assert name == "sim_status"
         if self.statuses:
             return self.statuses.pop(0)
-        return {"counts": {"finished": 1, "failed": 0}, "jobs": [{"state": "finished"}]}
+        return self.default
 
     def get_file(self, exp_id, path, **_):
         if path not in self.files:
@@ -282,6 +283,31 @@ class RigDispatch(unittest.TestCase):
             self.assertEqual(rec["state"], "pending")
             self.assertIn("not cancelled", rec["reason"])
             self.assertIn("run1-cfd", rec["reason"])
+
+    def test_mesh_finished_solve_running_is_pending_not_failed(self):
+        # the rig runs the CFD case as stage jobs (mesh, then solve): a finished mesh with the solve still
+        # running is NOT a verdict — the old done>=1 break read "failed" into a running solve
+        with tempfile.TemporaryDirectory() as td:
+            cfd_dir, doc = _written_case(td)
+            running = {"counts": {"finished": 1, "failed": 0},
+                       "jobs": [{"state": "finished"}, {"state": "running"}]}
+            rig = FakeRig(default=running)
+            rec = cfd.dispatch(rig, cfd_dir=cfd_dir, doc=doc, exp_id="run1-cfd", principal=None,
+                               budget_s=0.05, poll_s=0.01)
+            self.assertEqual(rec["state"], "pending")
+            self.assertIn("not cancelled", rec["reason"])
+
+    def test_solve_failure_quotes_the_solve_job_not_the_mesh_job(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfd_dir, doc = _written_case(td)
+            failed = {"counts": {"finished": 1, "failed": 1},
+                      "jobs": [{"state": "finished"},
+                               {"state": "failed", "error": "pyfr run rc=1: nancheck abort at t=0.0018"}]}
+            rig = FakeRig(statuses=[failed], files={})
+            rec = cfd.dispatch(rig, cfd_dir=cfd_dir, doc=doc, exp_id="run1-cfd", principal=None,
+                               budget_s=60.0, poll_s=0.0)
+            self.assertEqual(rec["state"], "failed")
+            self.assertIn("nancheck", rec["reason"])
 
     def test_submission_refusal_is_not_delivered(self):
         with tempfile.TemporaryDirectory() as td:
