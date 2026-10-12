@@ -1450,7 +1450,12 @@ def render_markdown(data: dict) -> str:
             L += [f"- no part file: {wn.get('note') or 'the case produced no part'}"]
         if den:
             L += [f"- density field `{den.get('path')}` sha256 `{den.get('sha256')}`"]
-        L += [f"- STEP: not written: {(wn.get('step') or {}).get('reason') or NO_STEP}"]
+        step = wn.get("step") or {}
+        if step.get("written"):
+            L += [f"- STEP: `{step.get('path')}` sha256 `{step.get('sha256')}` ({step.get('faces')} faces): "
+                  f"{step.get('note') or 'mesh-derived faceted STEP'}"]
+        else:
+            L += [f"- STEP: not written: {step.get('reason') or NO_STEP}"]
         if wn.get("cavity_note"):
             L += [f"- {wn['cavity_note']}"]
         L += [""]

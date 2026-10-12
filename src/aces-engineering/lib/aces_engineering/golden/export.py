@@ -1,16 +1,19 @@
 """aces golden: the deliverable. The STL that was solved is the STL that ships: <label>/<label>.stl is a byte copy of
 the verify case's part.stl, with <label>/<label>.json (aces-golden-winner/1) describing it. The label is "winner" on
-PASS and "candidate" otherwise. No STEP and no 3MF: the part is an organic mesh (marching cubes of an implicit field),
-and a STEP of it would be a faceted pretence of a B-rep."""
+PASS and "candidate" otherwise. Alongside the STL, a faceted STEP (AP214 FACETED_BREP, vertices and edges
+deduplicated) is written when the part is under the face cap — mesh-derived, labelled as such, good for measuring
+and clearance in CAD, not a B-rep. Over the cap the STL alone ships and the record says why."""
 from __future__ import annotations
 
 import shutil
 from pathlib import Path
 
 from . import METRICS, SCHEMA, read_json, sha256_file
+from .step_export import FACE_CAP, write_faceted_step
 
 STEP_REASON = ("the part is an organic mesh (marching cubes of an implicit field); a STEP would be a faceted pretence "
                "of a B-rep")
+STEP_LABEL = "mesh-derived faceted STEP (AP214 FACETED_BREP) — not a B-rep; dimensions are the mesh's"
 RENDER_FILES = (("iso", "{label}_iso.png"), ("stress", "{label}_stress.png"), ("density_slices", "density_slices.png"),
                 ("vm_slices", "vm_slices.png"), ("disp_slices", "disp_slices.png"), ("cutaway", "{label}_cutaway.png"))
 
@@ -62,6 +65,14 @@ def export_winner(run, case_id: str, eff: dict, *, label: str = "winner") -> dic
                   "watertight": st["watertight"], "solids": st["solids"], "cavities": st["cavities"],
                   "mesh_volume_mm3": st["mesh_volume_mm3"], "area_mm2": st["area_mm2"], "bbox_mm": st["bbox_mm"],
                   "genus": st["genus"]}
+    # the faceted STEP beside the STL: honest CAD interop under the face cap, a reason over it
+    sdst = ldir / f"{label}.step"
+    try:
+        sstats = write_faceted_step(dst, sdst, name=label)
+        doc["step"] = {"written": True, "path": _rel(run, sdst), "sha256": sha256_file(sdst),
+                       "faces": sstats["faces"], "note": STEP_LABEL}
+    except ValueError as e:
+        doc["step"] = {"written": False, "reason": str(e)}
     dens = cdir / "generator" / "density.npy"
     if dens.is_file():
         doc["density"] = {"path": _rel(run, dens), "sha256": sha256_file(dens)}
