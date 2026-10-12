@@ -1,5 +1,6 @@
-"""B1 unit tests: the winner export (byte copy of the solved STL, no STEP) and every render (iso, stress on the skin,
-thumbnail, gallery, cutaway, winner figures) written as non-empty PNGs. stdlib unittest; test inputs only."""
+"""B1 unit tests: the winner export (byte copy of the solved STL, faceted STEP under the face cap) and every render
+(iso, stress on the skin, thumbnail, gallery, cutaway, winner figures) written as non-empty PNGs. stdlib unittest;
+test inputs only."""
 from __future__ import annotations
 
 import sys
@@ -13,7 +14,7 @@ for _p in (_HERE.parent / "lib", _HERE.parent / "vendor", _HERE):
         sys.path.append(str(_p))
 
 from aces_engineering import golden  # noqa: E402
-from aces_engineering.golden import case as gcase, export, render  # noqa: E402
+from aces_engineering.golden import case as gcase, export, render, step_export  # noqa: E402
 
 from test_g1_case import case_dict, make_run  # noqa: E402
 
@@ -47,11 +48,21 @@ class Renders(unittest.TestCase):
         self.assertEqual(stl.read_bytes(), self.rd.path("v001", "part.stl").read_bytes())
         self.assertEqual(doc["stl"]["path"], "winner/winner.stl")
         self.assertEqual(doc["stl"]["sha256"], golden.sha256_file(stl))
-        self.assertEqual(doc["step"]["written"], False)
+        # the faceted STEP ships when the mesh is under FACE_CAP; either way the record says what happened
+        self.assertEqual(doc["step"]["written"], doc["stl"]["faces"] <= step_export.FACE_CAP)
+        if doc["step"]["written"]:
+            sp = self.rd.path(doc["step"]["path"])
+            self.assertEqual(doc["step"]["path"], "winner/winner.step")
+            self.assertEqual(doc["step"]["sha256"], golden.sha256_file(sp))
+            self.assertEqual(doc["step"]["faces"], doc["stl"]["faces"])
+            self.assertIn("FACETED_BREP", sp.read_text(errors="replace"))
+            self.assertIn("not a B-rep", doc["step"]["note"])
+        else:
+            self.assertIn("reason", doc["step"])
+            self.assertFalse(any(self.rd.path("winner").glob("*.step")))
         self.assertEqual(doc["density"]["path"], "v001/generator/density.npy")
         self.assertEqual(doc["mass_kg"], self.oc["results"]["mass_kg"])
         self.assertEqual((doc["stl"]["watertight"], doc["stl"]["solids"]), (True, 1))
-        self.assertFalse(any(self.rd.path("winner").glob("*.step")))
         renders = render.winner_figures(self.rd, "winner", "v001", self.dom, self.eff)
         for name in ("iso", "stress", "density_slices", "vm_slices", "disp_slices"):
             self.assertIn(name, renders)
