@@ -145,3 +145,123 @@ class WriteCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ------------------------------------------------------------------ rig dispatch (fake MCP client)
+
+from aces_engineering.golden import rig as rig_mod  # noqa: E402
+
+
+class FakeRig:
+    """The RigClient surface golden.cfd.dispatch uses, scripted: sim_status answers in order."""
+
+    def __init__(self, statuses=(), files=None, fail_on=None):
+        self.statuses = list(statuses)
+        self.files = files or {}
+        self.fail_on = fail_on
+        self.uploads = []
+        self.submitted = None
+
+    def put_file(self, name, data):
+        if self.fail_on == "put_file":
+            raise rig_mod.RigError("boom")
+        self.uploads.append(name)
+        import hashlib
+        return {"sha256": hashlib.sha256(data).hexdigest()}
+
+    def put_spec(self, text, name, principal):
+        if self.fail_on == "put_spec":
+            raise rig_mod.RigError("policy refuses put_spec")
+        self.spec_text = text
+        return {"spec_path": f"cases/uploaded/{principal or 'aaron'}/{name}"}
+
+    def submit(self, spec_path, exp_id, lease_wait_s):
+        self.submitted = (spec_path, exp_id, lease_wait_s)
+        return {"queue": "sim", "exp_dir": f"/work/out/queue/{exp_id}",
+                "jobs": [f"{exp_id}--c000--run--abc123"]}
+
+    def call(self, name, args=None, **_):
+        assert name == "sim_status"
+        if self.statuses:
+            return self.statuses.pop(0)
+        return {"counts": {"finished": 1, "failed": 0}, "jobs": [{"state": "finished"}]}
+
+    def get_file(self, exp_id, path, **_):
+        if path not in self.files:
+            raise rig_mod.RigError(f"no such file {path}")
+        import hashlib
+        data = self.files[path]
+        return data, hashlib.sha256(data).hexdigest(), 1
+
+
+def _written_case(td):
+    flow = spec.GoldenSpec(**flow_spec()).flow
+    root = Path(td)
+    step = root / "winner" / "winner.step"
+    step.parent.mkdir(parents=True, exist_ok=True)
+    step.write_text("ISO-10303-21;\nEND-ISO-10303-21;", encoding="utf-8")
+    cfd_dir = root / "cfd" / "winner"
+    doc = cfd.write_case(cfd_dir, name="run1-cfd", label="winner", flow=flow,
+                         step_path=step, bbox_mm=BBOX_MM, project="p", owner="aaron")
+    return cfd_dir, doc
+
+
+FINISHED_FILES = {
+    "c000/status.json": json.dumps({"status": "FINISHED", "wall_s": 42.0, "error": None}).encode(),
+    "c000/results.json": json.dumps({"Cd_mean": 1.31, "Re": 162162.0}).encode(),
+    "c000/evidence.json": json.dumps({"schema": "test"}).encode(),
+}
+
+
+class RigDispatch(unittest.TestCase):
+    def test_delivered_pulls_and_verifies(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfd_dir, doc = _written_case(td)
+            rig = FakeRig(files=dict(FINISHED_FILES))
+            rec = cfd.dispatch(rig, cfd_dir=cfd_dir, doc=doc, exp_id="run1-cfd", principal="aaron",
+                               budget_s=60.0, poll_s=0.0)
+            self.assertEqual(rec["state"], "delivered")
+            self.assertEqual(rec["results"]["Cd_mean"], 1.31)
+            self.assertEqual(sorted(rec["pulled"]), ["evidence.json", "results.json", "status.json"])
+            self.assertTrue((cfd_dir / "rig" / "c000" / "results.json").is_file())
+            self.assertEqual(len(rig.uploads), 2)          # the ini and the STEP
+            self.assertEqual(rig.submitted[1], "run1-cfd")
+            self.assertTrue((cfd_dir / "rig" / "dispatch.json").is_file())
+            # the rig experiment's paths point into the spec store, not the local tree
+            self.assertIn("run1-cfd/case", rig.spec_text)
+            self.assertIn("run1-cfd/winner.step", rig.spec_text)
+
+    def test_failed_case_quotes_the_rig(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfd_dir, doc = _written_case(td)
+            files = {"c000/status.json": json.dumps(
+                {"status": "FAILED", "error": "Traceback...\nRuntimeError: diverged"}).encode()}
+            rig = FakeRig(statuses=[{"counts": {"finished": 0, "failed": 1}, "jobs": [{"state": "failed"}]}],
+                          files=files)
+            rec = cfd.dispatch(rig, cfd_dir=cfd_dir, doc=doc, exp_id="run1-cfd", principal=None,
+                               budget_s=60.0, poll_s=0.0)
+            self.assertEqual(rec["state"], "failed")
+            self.assertIn("diverged", rec["reason"])
+
+    def test_budget_spent_is_pending_and_never_cancelled(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfd_dir, doc = _written_case(td)
+            rig = FakeRig(statuses=[{"counts": {"finished": 0, "failed": 0}, "jobs": [{"state": "running"}]}])
+            rec = cfd.dispatch(rig, cfd_dir=cfd_dir, doc=doc, exp_id="run1-cfd", principal=None,
+                               budget_s=0.0, poll_s=0.0)
+            self.assertEqual(rec["state"], "pending")
+            self.assertIn("not cancelled", rec["reason"])
+            self.assertIn("run1-cfd", rec["reason"])
+
+    def test_submission_refusal_is_not_delivered(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfd_dir, doc = _written_case(td)
+            rig = FakeRig(fail_on="put_spec")
+            rec = cfd.dispatch(rig, cfd_dir=cfd_dir, doc=doc, exp_id="run1-cfd", principal=None,
+                               budget_s=60.0, poll_s=0.0)
+            self.assertEqual(rec["state"], "not-delivered")
+            self.assertIn("policy refuses", rec["reason"])
+            self.assertIsNone(rig.submitted)
+
+    def test_experiment_id_is_filename_safe(self):
+        self.assertEqual(cfd.rig_experiment_id("20261012T101112Z my run/1"), "20261012T101112Z-my-run-1-cfd")

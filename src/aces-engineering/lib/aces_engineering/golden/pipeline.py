@@ -82,6 +82,7 @@ class Options:
     rig_sweep: bool = False
     rig_budget: float = 1800.0
     conforming: str = "auto"
+    cfd: str = "auto"           # auto | template | off — the flow-block CFD stage's dispatch gate
     require_grade: str | None = None
     json_out: bool = False
     progress: str = "auto"
@@ -514,6 +515,8 @@ class _Pipeline:
         rig_mod, compute = _mod("rig"), _mod("compute")
         if o.conforming not in compute.CONFORMING_MODES:
             raise GoldenError(EXIT_USAGE, f"--conforming must be auto, rig, local or off, not {o.conforming!r}")
+        if o.cfd not in ("auto", "template", "off"):
+            raise GoldenError(EXIT_USAGE, f"--cfd must be auto, template or off, not {o.cfd!r}")
         if o.require_grade is not None and o.require_grade not in GRADES:
             raise GoldenError(EXIT_USAGE, f"--require-grade must be one of {', '.join(GRADES)}, not {o.require_grade!r}")
         try:
@@ -830,9 +833,68 @@ class _Pipeline:
         self._end("export", text)
 
     # ---- stage 8 ------------------------------------------------------------------------------------------------
+    def stage_cfd(self) -> None:
+        """Tier-1 CFD: with a `flow:` block in the spec, template a PyFR case on the exported faceted STEP and —
+        --cfd auto with a live rig lane — queue it on the rig and pull the result back. Never blocks the structural
+        result: every gap is a skipped stage or a recorded dispatch state, not a run failure."""
+        flow = self.eff.get("flow")
+        if not flow:
+            self._skip(8, "cfd", "no flow block in the spec")
+            return
+        if self.opts.cfd == "off":
+            self._skip(8, "cfd", "--cfd off")
+            return
+        label = self.label or "candidate"
+        rec = _safe_json(self.run.path(label, f"{label}.json"))
+        step_info, stl_info = rec.get("step") or {}, rec.get("stl") or {}
+        step_path = self.run.path(step_info.get("path")) if step_info.get("written") else None
+        bbox = stl_info.get("bbox_mm")    # flat [x0, y0, z0, x1, y1, z1]
+        if not (step_path and step_path.is_file() and isinstance(bbox, list) and len(bbox) == 6):
+            self._skip(8, "cfd", "no verified faceted STEP with a bbox to mesh (see the export stage's step record)")
+            return
+        self._begin(8, "cfd", f"PyFR case on the {label} part, {flow['velocity_mps']:g} m/s {flow['medium']}")
+        cfd_mod, spec_mod = _mod("cfd"), _mod("spec")
+        flow_model = spec_mod.Flow(**flow)
+        cfd_dir = self.run.path("cfd", label)
+        doc = cfd_mod.write_case(cfd_dir, name=cfd_mod.rig_experiment_id(self.run.run_id), label=label,
+                                 flow=flow_model, step_path=step_path,
+                                 bbox_mm=[float(x) for x in bbox], project=self.project,
+                                 owner=self.operator, hypothesis=self.eff.get("hypothesis"))
+        note = (f"Re {doc['reynolds']:.4g}, box {[round(x, 1) for x in doc['box_mm']]} mm, "
+                f"case in {self.run.rel(cfd_dir)}")
+        session = self.session
+        pyfr_row = None
+        if session is not None and self.opts.cfd == "auto":
+            try:
+                reg = session.client.call("sim_list_solvers") or {}
+                row = reg.get("pyfr")
+                if isinstance(row, dict) and (row.get("validation") or {}).get("status") == "pass":
+                    pyfr_row = row
+            except Exception as e:  # noqa: BLE001 — a registry we cannot read is a template-only stage, not a failure
+                self.progress.note(f"cfd: the rig registry could not be read ({e}); templating only", "warning")
+        if self.opts.cfd == "template" or session is None or pyfr_row is None:
+            why = ("--cfd template" if self.opts.cfd == "template" else
+                   "no rig lane" if session is None else "the rig registry has no validated pyfr solver")
+            (cfd_dir / "rig").mkdir(parents=True, exist_ok=True)
+            with open(cfd_dir / "rig" / "dispatch.json", "w", encoding="utf-8") as f:
+                json.dump({"schema": "aces-golden-cfd-rig/1", "state": "templated",
+                           "reason": f"{why}: case files written, nothing submitted. Queue it with the experiment "
+                                     "yaml in this directory (aces-simlab remote call sim_submit, or simlab enqueue "
+                                     "--docker on the rig).", "experiment": doc["experiment_doc"]["id"]}, f, indent=2)
+            self.progress.line(f"  cfd: templated, not dispatched ({why})")
+            self._end("cfd", f"{note} — templated, not dispatched ({why})")
+            return
+        rec2 = cfd_mod.dispatch(session.client, cfd_dir=cfd_dir, doc=doc,
+                                exp_id=cfd_mod.rig_experiment_id(self.run.run_id), principal=session.principal,
+                                budget_s=float(session.budget_s), progress=self.progress)
+        text = f"{note} — rig: {rec2['state']}" + (f" ({rec2['reason']})" if rec2.get("reason") else "")
+        self.progress.line("  " + text)
+        self._end("cfd", text)
+
+    # ---- stage 9 ------------------------------------------------------------------------------------------------
     def stage_evidence(self) -> None:
         v = self.validation
-        self._begin(8, "evidence", "anchor the files, chain the bundle into the simlab ledger, golden.run into the aces ledger")
+        self._begin(9, "evidence", "anchor the files, chain the bundle into the simlab ledger, golden.run into the aces ledger")
         try:
             led = _mod("evidence").record(self.run, self.eff, self.project_info, self.aces, operator=self.operator,
                                           note=self.opts.note, verdict=v.get("verdict"), outcome=v.get("outcome")) or {}
@@ -849,9 +911,9 @@ class _Pipeline:
         self.progress.line("  " + text)
         self._end("evidence", text)
 
-    # ---- stage 9 ------------------------------------------------------------------------------------------------
+    # ---- stage 10 -----------------------------------------------------------------------------------------------
     def stage_report(self) -> None:
-        self._begin(9, "report", "report.md, report.html, report.json")
+        self._begin(10, "report", "report.md, report.html, report.json")
         report = _mod("report")
         self.report_paths = report.write(self.run, report.assemble(self.run)) or {}
         self._end("report", ", ".join(self.run.rel(p) for p in self.report_paths.values() if p))
@@ -867,6 +929,7 @@ class _Pipeline:
             self.stage_loop()
             self.stage_check()
             self.stage_export()
+            self.stage_cfd()
             self.stage_evidence()
             self.stage_report()
             code, message, hint = self.final_code()

@@ -519,7 +519,7 @@ class RunTests(CliTestCase):
         self.assertNotIn("noise", r.out)
         self.assertNotIn("initialized", r.out)  # the Warp banner ("Warp 1.x initialized:") stays in log.txt
         self.assertNotIn("noise", r.err)
-        self.assertIn("[4/9] sweep", r.err)
+        self.assertIn("[4/10] sweep", r.err)
         run = Path(doc["run_dir"])
         self.assertEqual(run, self.run_dir())
         log = (run / "log.txt").read_text(encoding="utf-8", errors="replace")
@@ -541,8 +541,11 @@ class RunTests(CliTestCase):
         meta = json.loads((run / "run.json").read_text(encoding="utf-8"))
         self.assertEqual((meta["status"], meta["exit_code"], meta["demo"]), ("done", 0, "root-mount"))
         self.assertEqual([s["name"] for s in meta["stages"]],
-                         ["compute", "inputs", "domain", "sweep", "loop", "check", "export", "evidence", "report"])
-        self.assertTrue(all(s["status"] == "done" for s in meta["stages"]))
+                         ["compute", "inputs", "domain", "sweep", "loop", "check", "export", "cfd", "evidence", "report"])
+        self.assertTrue(all(s["status"] == "done" for s in meta["stages"] if s["name"] != "cfd"))
+        cfd_stage = next(s for s in meta["stages"] if s["name"] == "cfd")
+        self.assertEqual(cfd_stage["status"], "skipped")   # the demo spec has no flow block
+        self.assertIn("no flow block", cfd_stage.get("note") or "")
         self.assertEqual(meta["tool"]["argv"], ["run", "--demo", "--json", "--progress", "lines"])
         self.assertEqual(meta["paths"]["stl"], "winner/winner.stl")
         manifest = (run / "manifest.sha256").read_text(encoding="utf-8")

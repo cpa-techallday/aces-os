@@ -243,9 +243,143 @@ def write_case(cfd_dir: Path, *, name: str, label: str, flow: Any, step_path: Pa
            "experiment": _posix_rel(exp_path, cfd_dir), "step": step_rel, **d}
     with open(cfd_dir / "cfd_case.json", "w", encoding="utf-8") as f:
         json.dump(doc, f, indent=2)
+    doc["experiment_doc"] = exp              # in-memory only: dispatch rewrites its paths for the rig's spec store
+    doc["step_abs"] = str(step_path)         # in-memory only: the bytes dispatch uploads
     return doc
 
 
 def _posix_rel(path: Path, root: Path) -> str:
     import os
     return os.path.relpath(os.path.abspath(path), os.path.abspath(root)).replace(os.sep, "/")
+
+
+# ----------------------------------------------------------------------------------------------------------- rig dispatch
+
+POLL_S = 2.0
+LEASE_WAIT_S = 1800          # per-case GPU lease wait on the rig (clamped by the rig to 60..21600)
+RIG_PULLS = ("status.json", "results.json", "evidence.json")   # pulled back under cfd/<label>/rig/c000/ when present
+
+
+def rig_experiment_id(run_id: str) -> str:
+    """A filename-safe rig experiment id for the run's CFD case (the rig's own id rules: letters, digits, '-', '_')."""
+    import re
+    eid = re.sub(r"[^A-Za-z0-9_-]+", "-", f"{run_id}-cfd").strip("-_")
+    if not eid:
+        raise ValueError(f"no usable rig experiment id from run id {run_id!r}")
+    return eid[:64]
+
+
+def rig_experiment(doc: dict, exp_id: str) -> dict:
+    """The run-dir experiment rewritten for the rig's spec store: the case's .ini and STEP upload next to the spec
+    (<store>/<principal>/<exp_id>/...), so case_dir and mesh.from_step point there."""
+    import copy
+    exp = copy.deepcopy(doc["experiment_doc"])
+    exp["id"] = exp_id
+    exp["params"]["case_dir"] = f"{exp_id}/case"
+    exp["params"]["mesh"]["from_step"] = f"{exp_id}/{doc['label']}.step"
+    return exp
+
+
+def dispatch(client: Any, *, cfd_dir: Path, doc: dict, exp_id: str, principal: str | None,
+             budget_s: float, lease_wait_s: int = LEASE_WAIT_S, poll_s: float = POLL_S,
+             progress: Any = None) -> dict:
+    """Upload the templated case to the rig's spec store, queue it (docker, the solver's registered image), wait within
+    budget_s, and pull the case's records back. The record (also written to cfd/<label>/rig/dispatch.json) ends in one
+    of three honest states:
+
+      delivered       results.json came back and verified (sha256 recomputed by the rig on every read)
+      failed          the case ran and failed — the rig's status.json error is quoted
+      pending         the budget ran out first; the experiment is NOT cancelled (it keeps running on the rig) and the
+                      record names exactly what to poll and pull later
+      not-delivered   a transport/protocol failure before or during submission; nothing may be queued
+    """
+    import time
+
+    import yaml
+
+    from .rig import RigError, RigIntegrityError, RigUnreachable
+    from . import sha256_bytes, utc_now
+
+    cfd_dir = Path(cfd_dir)
+    rig_dir = cfd_dir / "rig"
+    rig_dir.mkdir(parents=True, exist_ok=True)
+    rec: dict[str, Any] = {"schema": "aces-golden-cfd-rig/1", "experiment": exp_id, "state": "not-delivered",
+                           "reason": None, "submitted_utc": None, "spec_path": None, "queue": None, "jobs": [],
+                           "pulled": {}, "budget_s": budget_s}
+
+    def finish(state: str, reason: str | None) -> dict:
+        rec["state"], rec["reason"] = state, reason
+        with open(rig_dir / "dispatch.json", "w", encoding="utf-8") as f:
+            json.dump(rec, f, indent=2)
+        return rec
+
+    def note(text: str) -> None:
+        if progress is not None:
+            progress.line("  " + text)
+
+    try:
+        ini = (cfd_dir / "case" / f"{doc['label']}.ini").read_bytes()
+        step = Path(doc["step_abs"]).read_bytes()
+        up1 = client.put_file(f"{exp_id}/case/{doc['label']}.ini", ini)
+        up2 = client.put_file(f"{exp_id}/{doc['label']}.step", step)
+        rec["uploads"] = [{"name": f"{exp_id}/case/{doc['label']}.ini", "sha256": up1.get("sha256")},
+                          {"name": f"{exp_id}/{doc['label']}.step", "sha256": up2.get("sha256")}]
+        exp = rig_experiment(doc, exp_id)
+        text = yaml.safe_dump(exp, sort_keys=False, allow_unicode=True)
+        (rig_dir / "spec.yaml").write_text(text, encoding="utf-8")
+        rec["spec_sha256"] = sha256_bytes(text.encode("utf-8"))
+        put = client.put_spec(text, f"{exp_id}.yaml", principal)
+        rec["spec_path"] = put.get("spec_path")
+        sub = client.submit(rec["spec_path"], exp_id, lease_wait_s)
+        rec["submitted_utc"] = utc_now()
+        rec["queue"], rec["exp_dir"] = sub.get("queue"), sub.get("exp_dir")
+        rec["jobs"] = [str(j) for j in sub.get("jobs") or []]
+        note(f"cfd: {exp_id} submitted to the rig ({len(rec['jobs'])} case, lease wait {lease_wait_s} s)")
+    except (RigError, RigUnreachable, OSError, ValueError) as exc:
+        return finish("not-delivered", str(exc))
+
+    t_end = time.monotonic() + float(budget_s)
+    case_state = None
+    while time.monotonic() < t_end:
+        try:
+            st = client.call("sim_status", {"experiment_id": exp_id}) or {}
+        except RigUnreachable as exc:
+            return finish("pending", f"lost contact with the rig mid-run ({exc}); the experiment keeps running: "
+                                     f"sim_status {exp_id}")
+        counts = st.get("counts") or {}
+        jobs = st.get("jobs") or []
+        if jobs:
+            case_state = str(jobs[0].get("state") or case_state)
+        done = int(counts.get("finished") or 0) + int(counts.get("failed") or 0)
+        if done >= 1 or case_state in ("finished", "failed"):
+            break
+        time.sleep(poll_s)
+    else:
+        pass
+    if case_state not in ("finished", "failed") and time.monotonic() >= t_end:
+        return finish("pending", f"rig budget {budget_s:g} s spent and the case is still {case_state or 'queued'}; "
+                                 f"not cancelled — collect later with sim_status {exp_id} and sim_get_file "
+                                 f"{exp_id} c000/results.json")
+
+    for name in RIG_PULLS:
+        try:
+            data, sha, _chunks = client.get_file(exp_id, f"c000/{name}")
+        except RigIntegrityError as exc:
+            return finish("not-delivered", f"pulled file did not verify: {exc}")
+        except (RigError, RigUnreachable):
+            continue  # a failed case has no results.json; status.json carries the reason
+        out = rig_dir / "c000" / name
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(data)
+        rec["pulled"][name] = {"sha256": sha, "bytes": len(data), "path": f"rig/c000/{name}"}
+    status = {}
+    sp = rig_dir / "c000" / "status.json"
+    if sp.is_file():
+        with open(sp, "r", encoding="utf-8") as f:
+            status = json.load(f)
+    if status.get("status") == "FINISHED" and "results.json" in rec["pulled"]:
+        with open(rig_dir / "c000" / "results.json", "r", encoding="utf-8") as f:
+            rec["results"] = json.load(f)
+        return finish("delivered", None)
+    err = status.get("error") or f"case state {case_state or 'unknown'} with no results.json"
+    return finish("failed", str(err).splitlines()[-1][:400] if err else err)
