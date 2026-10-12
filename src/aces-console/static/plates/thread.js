@@ -1,24 +1,25 @@
-// Thread plate: the conversation is the home screen of the aces console. Describe a part, a machine or a
-// question; the agent on the rig (Mission Control, proxied with every token server-side) answers in the same
-// thread. Above the thread, one line of plain-words rig truth (mode, GPUs, queue); below it, the composer.
-// Absence is drawn with its reason ("Mission Control unreachable: ..."), never guessed.
-// Bindings: /api/mc/sessions, /api/mc/session, /api/mc/session/{id}, /api/mc/session/{id}/message,
-// /api/mc/upload; stamps rig.status, sim.capacity, mc.sessions. Deep link: ?plate=thread&session=<id>.
+// Thread plate: the conversation is the home screen of the aces console. The composer talks to the loop
+// (/api/loop/*): a message becomes a plan card (strike items, approve), an approved plan becomes editable
+// spec drafts, a confirmed draft becomes a golden run whose job chip turns into a result link when the run
+// lands. Nothing runs without the plan being visible and a spec being confirmed. Above the thread, one line
+// of plain-words rig truth; absence is drawn with its reason, never guessed.
+// Bindings: /api/loop/message, /api/loop/threads, /api/loop/thread/{id}, /api/loop/plan/approve,
+// /api/loop/spec/confirm, /api/job/{id}; stamps rig.status, sim.capacity, jobs.
+// Deep link: ?plate=thread&thread=<id>.
 
-const PATHS = { sessions: "/api/mc/sessions" };
+const $tid = () => { try { return localStorage.getItem("aces.loop.thread"); } catch { return null; } };
 let R = null;
 
 export async function mount(root, ctx) {
   const { el } = ctx.dom;
   R = {
-    ctx, root, dead: false, poll: null,
-    session: storedSession(), sessionDetail: null, sessionRes: null,
-    files: [], state: "", sending: false,
-    rigStatus: null, capacity: null,
+    ctx, root, dead: false, pollers: new Map(),
+    thread: null, threadId: num(ctx.params.get("thread")) !== null ? ctx.params.get("thread") : $tid(),
+    state: "", busy: false,
+    rigStatus: null, capacity: null, jobs: null,
     b: {
       truth: el("div.truth", { role: "status" }),
       log: el("div.t-log", { role: "log", "aria-live": "polite", "aria-label": "conversation" }),
-      composer: null,
     },
   };
   const ta = el("textarea", {
@@ -27,196 +28,254 @@ export async function mount(root, ctx) {
   });
   const send = ctx.dom.button("Send", { cls: "btn primary t-send", onclick: () => sendMessage(ta) });
   ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) send.click(); });
-  const file = el("input", { type: "file", multiple: true, hidden: true, onchange: (e) => attach(e.target.files) });
+  const newBtn = ctx.dom.button("New conversation", { cls: "btn", onclick: newThread, title: "start a fresh thread (this one stays listed)" });
   R.b.composer = el("div.t-composer", [
     ta,
-    el("div.t-composer-row", [
-      ctx.dom.button("Attach", { cls: "btn", title: "attach reference files to the next message", onclick: () => file.click() }),
-      file,
-      el("span.t-files", {}, R.files.map((u) => el("span.chip", { text: u.filename }))),
-      el("span.t-state", { text: R.state }),
-      send,
-    ]),
+    el("div.t-composer-row", [newBtn, el("span.t-state", { text: R.state }), send]),
   ]);
-  R.b.ta = ta; R.b.fileInput = file;
+  R.b.ta = ta;
 
-  root.append(
-    el("div.t-wrap", [
-      el("div.t-head", [
-        el("div.t-title", { text: "What are we building?" }),
-        R.b.truth,
-      ]),
-      R.b.log,
-      R.b.composer,
-    ]),
-  );
+  root.append(el("div.t-wrap", [
+    el("div.t-head", [el("div.t-title", { text: "What are we building?" }), R.b.truth]),
+    R.b.log,
+    R.b.composer,
+  ]));
 
   ctx.events.on("rig.status", (st) => { R.rigStatus = st; renderTruth(); });
   ctx.events.on("sim.capacity", (st) => { R.capacity = st; renderTruth(); });
-  ctx.events.on("mc.sessions", (st) => { if (st.changed) refetchSessions(); });
+  ctx.events.on("jobs", () => { pollRuns(true); });
 
   renderTruth();
   renderLog();
-  await ensureSession();
+  if (R.threadId) await loadThread(R.threadId);
 }
 
 export function unmount() {
   if (!R) return;
   R.dead = true;
-  if (R.poll) clearInterval(R.poll);
+  for (const p of R.pollers.values()) clearInterval(p);
   R = null;
 }
 
-// ---------- the plain-words rig truth line ----------
+function num(v) { const n = Number(v); return Number.isFinite(n) && v !== null && v !== "" ? v : null; }
+
+// ---------- plain-words rig truth ----------
 function renderTruth() {
   const { el, clear } = R.ctx.dom;
   const box = R.b.truth; clear(box);
   const bits = [];
   const st = R.rigStatus;
-  if (st && st.ok !== false && st.payload && st.payload.mode) {
-    bits.push([`rig is in ${String(st.payload.mode).toUpperCase()} mode`, st.payload.switching ? "warn" : "ok"]);
-  } else if (st && st.ok === false) bits.push([`rig status unreachable${st.error ? ": " + st.error : ""}`, "bad"]);
+  if (st && st.ok !== false && st.payload && st.payload.mode) bits.push([`rig is in ${String(st.payload.mode).toUpperCase()} mode`, st.payload.switching ? "warn" : "ok"]);
+  else if (st && st.ok === false) bits.push([`rig status unreachable${st.error ? ": " + st.error : ""}`, "bad"]);
   else bits.push(["rig status not reported yet", "dim"]);
   const cap = R.capacity && R.capacity.ok !== false ? R.capacity.payload : null;
   if (cap) {
     const gpus = cap.gpus || cap.cards || [];
     const free = Array.isArray(gpus) ? gpus.filter((g) => !g.lease && !g.job).length : null;
     if (free !== null) bits.push([`${free} of ${gpus.length} GPUs free`, free > 0 ? "ok" : "warn"]);
-    if (cap.queued !== undefined) bits.push([`${cap.queued} job${cap.queued === 1 ? "" : "s"} queued`, cap.queued > 0 ? "warn" : "dim"]);
+    if (cap.queued !== undefined && cap.queued !== null) bits.push([`${cap.queued} job${cap.queued === 1 ? "" : "s"} queued`, cap.queued > 0 ? "warn" : "dim"]);
   }
   for (const [text, tone] of bits) box.append(el("span.t-bit." + tone, { text }));
 }
 
-// ---------- the conversation ----------
-function storedSession() {
-  try { const v = localStorage.getItem("aces.thread.session"); return v ? Number(v) : null; } catch { return null; }
-}
-function storeSession(id) {
-  try { if (id === null) localStorage.removeItem("aces.thread.session"); else localStorage.setItem("aces.thread.session", String(id)); } catch { }
-}
-
-async function ensureSession() {
-  if (R.session !== null) { await loadSession(R.session); return; }
-  // reuse the newest existing session when there is one; create one only on the first send
-  const r = await R.ctx.api.get(PATHS.sessions);
+// ---------- thread state ----------
+async function loadThread(tid) {
+  const r = await R.ctx.api.get(`/api/loop/thread/${tid}`);
   if (!R || R.dead) return;
-  if (r.ok && r.data && Array.isArray(r.data.sessions) && r.data.sessions.length) {
-    const list = r.data.sessions.slice().sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
-    R.session = list[0].id; storeSession(R.session);
-    await loadSession(R.session);
-  } else if (!r.ok) {
-    R.sessionRes = r;
+  if (r.ok) { R.thread = r.data.thread; R.threadId = tid; storeTid(tid); renderLog(); pollRuns(false); }
+  else {
+    R.thread = null; R.threadId = null; storeTid(null);
     renderLog();
   }
 }
 
-async function refetchSessions() { if (R && R.session !== null) await loadSession(R.session); }
+function storeTid(tid) {
+  try { if (tid === null) localStorage.removeItem("aces.loop.thread"); else localStorage.setItem("aces.loop.thread", tid); } catch { }
+}
 
-async function loadSession(id) {
-  const r = await R.ctx.api.get(`/api/mc/session/${id}`);
-  if (!R || R.dead || R.session !== id) return;
-  R.sessionRes = r;
-  R.sessionDetail = r.ok ? r.data : null;
+function newThread() {
+  R.thread = null; R.threadId = null; storeTid(null);
+  const u = new URL(location.href); u.searchParams.delete("thread"); history.replaceState(null, "", u);
   renderLog();
 }
 
-function msgText(c) {
-  if (typeof c === "string") return c;
-  if (Array.isArray(c)) return c.map(msgText).join("\n");
-  if (c && typeof c === "object") return c.text || c.content || c.output || c.message || JSON.stringify(c, null, 1);
-  return String(c ?? "");
-}
-
+// ---------- rendering ----------
 function renderLog() {
   const { el, clear } = R.ctx.dom;
   const box = R.b.log; clear(box);
-  const d = R.sessionDetail;
-  if (R.session === null && (!R.sessionRes || R.sessionRes.ok)) {
+  const th = R.thread;
+  if (!th || !th.messages || !th.messages.length) {
     box.append(el("div.t-empty", [
       el("div.t-empty-title", { text: "Start with one sentence." }),
       el("div.t-empty-body", { text: "Say what the thing is and what it must do — load it carries, heat it sheds, speed it sees, space it fits. A plan appears here before anything runs; nothing burns compute until you approve it." }),
     ]));
     return;
   }
-  if (R.sessionRes && !R.sessionRes.ok) {
-    box.append(R.ctx.dom.note("the agent could not be reached", R.sessionRes.error || `HTTP ${R.sessionRes.status}`, { fault: true, detail: R.sessionRes.source }));
-    return;
-  }
-  const msgs = d && Array.isArray(d.messages) ? d.messages : [];
-  if (!msgs.length) {
-    box.append(el("div.t-empty", [el("div.t-empty-title", { text: "Empty conversation." }), el("div.t-empty-body", { text: "Type below to begin." })]));
-    return;
-  }
-  for (const m of msgs) {
-    const mine = m.role === "user";
-    box.append(el("div.t-msg" + (mine ? ".user" : ".agent"), [
-      el("div.t-who", { text: mine ? "you" : "aces" }),
-      el("div.t-body", { text: msgText(m.content) }),
-    ]));
-  }
-  if (R.sending) box.append(el("div.t-msg.agent", [el("div.t-who", { text: "aces" }), el("div.t-body.t-thinking", { text: "working…" })]));
+  const lastOf = {};
+  th.messages.forEach((m, i) => { if (m.card && m.card.plan) lastOf.plan = i; if (m.card && m.card.drafts) lastOf.drafts = i; });
+  th.messages.forEach((m, i) => box.append(renderMessage(m, { plan: i === lastOf.plan, drafts: i === lastOf.drafts })));
   setTimeout(() => { box.scrollTop = box.scrollHeight; }, 0);
 }
 
-async function attach(files) {
-  for (const f of files) {
-    if (f.size > 16 * 1024 * 1024) { setState(`${f.name}: over the 16 MiB upload cap`); continue; }
-    const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",", 2)[1] || ""); fr.onerror = () => rej(fr.error); fr.readAsDataURL(f); });
-    const r = await R.ctx.api.post("/api/mc/upload", { filename: f.name, mime: f.type || "application/octet-stream", data_b64: b64 });
-    if (!R || R.dead) return;
-    if (r.ok && r.data && r.data.result && r.data.result.id !== undefined) R.files.push({ id: r.data.result.id, filename: r.data.result.filename || f.name });
-    else setState(`upload ${f.name} failed: ${r.error || "HTTP " + r.status}`);
+function renderMessage(m, live = { plan: false, drafts: false }) {
+  const { el } = R.ctx.dom;
+  const mine = m.role === "user";
+  const body = el("div.t-body", { text: m.text });
+  const kids = [el("div.t-who", { text: mine ? "you" : "aces loop" }), body];
+  if (!mine && m.card) {
+    if (m.card.plan) kids.push(planCard(m.card.plan, live.plan));
+    if (m.card.drafts) kids.push(draftsCard(m.card.drafts, live.drafts));
+    if (m.card.run) kids.push(runChip(m.card.run));
   }
-  refreshComposer();
+  return el("div.t-msg" + (mine ? ".user" : ".agent"), kids);
 }
 
-function refreshComposer() {
-  const { el, clear } = R.ctx.dom;
-  const holder = R.b.composer.querySelector(".t-files");
-  clear(holder);
-  for (const u of R.files) holder.append(el("span.chip", { text: u.filename }));
-  const st = R.b.composer.querySelector(".t-state");
-  st.textContent = R.state;
+// a plan card: items with strike toggles, then approve
+function planCard(plan, interactive) {
+  const { el, button } = { el: R.ctx.dom.el, button: R.ctx.dom.button };
+  const struck = new Set();
+  const list = el("div.t-plan-items");
+  for (const it of plan.items) {
+    const row = el("div.t-plan-item" + (it.wired ? "" : ".unwired"));
+    const strike = el("button.t-strike", { text: "✕", title: "strike this item from the plan", onclick: () => { struck.has(it.key) ? struck.delete(it.key) : struck.add(it.key); row.classList.toggle("struck"); } });
+    const body = el("div.t-plan-item-body", [
+      el("div.t-plan-item-title", { text: it.title }),
+      el("div.t-plan-item-sub", { text: `${it.physics.join(" + ")} · answers: ${it.answers}` }),
+      it.wired ? null : el("div.t-plan-item-reason", { text: it.reason || "not wired" }),
+    ].filter(Boolean));
+    row.append(it.wired && interactive ? strike : el("span.t-strike.dim", { text: it.wired ? "·" : "—", title: it.wired ? "from an earlier plan" : "not wired; runs nothing" }), body);
+    list.append(row);
+  }
+  const note = plan.missing_geometry ? el("div.t-plan-note", { text: "Before anything runs: the design space — attach a STEP via the Projects or Evidence panel, pick a demo (root-mount, bone), or name an envelope like 200x150x40 mm in your next message." }) : null;
+  if (!interactive) return el("div.t-card.t-plan.superseded", [
+    el("div.t-card-title", { text: `Plan — ${plan.wired_count} wired item${plan.wired_count === 1 ? "" : "s"} (superseded)` }),
+    list, note].filter(Boolean));
+  const state = el("span.t-state");
+  const approve = button("Approve plan → spec drafts", {
+    cls: "btn primary",
+    onclick: async () => {
+      const keep = plan.items.filter((i) => i.wired && !struck.has(i.key)).map((i) => i.key);
+      if (!keep.length) { state.textContent = "nothing left to approve — every wired item is struck"; return; }
+      approve.disabled = true;
+      const r = await R.ctx.api.post("/api/loop/plan/approve", { thread: R.threadId, keep });
+      approve.disabled = false;
+      if (!R || R.dead) return;
+      if (r.ok) { await loadThread(R.threadId); }
+      else state.textContent = r.error || `HTTP ${r.status}`;
+    },
+  });
+  if (!plan.wired_count) approve.disabled = true;
+  return el("div.t-card.t-plan", [
+    el("div.t-card-title", { text: `Plan — ${plan.wired_count} wired item${plan.wired_count === 1 ? "" : "s"}` }),
+    list,
+    note,
+    el("div.t-card-actions", [state, approve]),
+  ].filter(Boolean));
 }
 
-function setState(t) { if (!R) return; R.state = t; refreshComposer(); }
+// drafts card: one editable spec per item, with its missing list and a confirm row
+function draftsCard(drafts, interactive) {
+  const { el } = R.ctx.dom;
+  const box = el("div.t-card.t-drafts" + (interactive ? "" : ".superseded"), [el("div.t-card-title", { text: interactive ? "Spec drafts — edit, then confirm to run" : "Spec drafts (superseded)" })]);
+  for (const key of Object.keys(drafts)) box.append(draftEditor(key, interactive));
+  return box;
+}
 
+function draftEditor(key, interactive) {
+  const { el, button } = R.ctx.dom;
+  const draft = (R.thread.drafts || {})[key];
+  if (!draft) return el("div.t-plan-note", { text: `draft ${key} is not in this thread any more` });
+  const missing = draft._missing || [];
+  const ta = el("textarea.t-spec", {
+    rows: "14", "aria-label": `spec draft for ${key}`,
+    text: JSON.stringify(draft, null, 1),
+    spellcheck: "false",
+  });
+  if (!interactive) ta.setAttribute("readonly", "readonly");
+  const name = el("input.t-project", { type: "text", placeholder: "project name, e.g. radar-bracket", "aria-label": "project name", value: draft.name || "" });
+  const state = el("span.t-state");
+  const confirm = button("Run this spec", {
+    cls: "btn primary",
+    title: "aces golden run --spec (confirm is the project name); one golden run at a time",
+    disabled: !interactive,
+    onclick: async () => {
+      let spec;
+      try { spec = JSON.parse(ta.value); } catch (e) { state.textContent = `spec is not valid JSON: ${e.message}`; return; }
+      const project = name.value.trim();
+      if (!project) { state.textContent = "name the project first (lower case, digits, - and _)"; return; }
+      confirm.disabled = true;
+      state.textContent = "starting…";
+      const r = await R.ctx.api.post("/api/loop/spec/confirm", { thread: R.threadId, item: key, spec, confirm: project });
+      if (!R || R.dead) return;
+      if (r.ok) { await loadThread(R.threadId); }
+      else { state.textContent = r.error || `HTTP ${r.status}`; confirm.disabled = false; }
+    },
+  });
+  return el("div.t-draft", [
+    el("div.t-draft-head", [el("strong", { text: key })]),
+    missing.length ? el("ul.t-missing", missing.map((x) => el("li", { text: x }))) : null,
+    ta,
+    el("div.t-card-actions", [name, state, confirm]),
+  ].filter(Boolean));
+}
+
+// a run chip: job state, turning into a result link when the run lands
+function runChip(run) {
+  const { el } = R.ctx.dom;
+  const st = el("span.t-run-state", { text: "queued…" });
+  const link = el("a.t-run-link", { href: `?plate=evidence&project=${encodeURIComponent(run.project)}&run=latest`, text: "open in Evidence" });
+  const chip = el("div.t-card.t-run", [
+    el("div.t-card-title", { text: `golden run · ${run.project}` }),
+    el("div.t-run-row", [el("span.mono", { text: `job ${run.job}` }), st, link]),
+  ]);
+  chip.dataset.job = String(run.job);
+  chip.dataset.project = run.project;
+  watchJob(chip, run.job);
+  return chip;
+}
+
+async function watchJob(chip, jobId) {
+  const r = await R.ctx.api.get(`/api/job/${jobId}`);
+  if (!R || R.dead || !chip.isConnected) return;
+  const st = chip.querySelector(".t-run-state");
+  if (!r.ok) { st.textContent = `job state unavailable: ${r.error}`; return; }
+  const j = r.data;
+  const status = j.status || (j.exit !== null && j.exit !== undefined ? "exited" : "unknown");
+  if (status === "running") { st.textContent = "running…"; st.className = "t-run-state live"; }
+  else if (j.exit === 0) { st.textContent = "finished — result ready"; st.className = "t-run-state done"; }
+  else if (j.exit !== null && j.exit !== undefined) { st.textContent = `exited ${j.exit} — see the job log`; st.className = "t-run-state fault"; }
+}
+
+// re-check running jobs on jobs stamps and every few seconds
+function pollRuns() {
+  if (!R || !R.thread) return;
+  const chips = R.b.log.querySelectorAll(".t-run");
+  for (const chip of chips) watchJob(chip, Number(chip.dataset.job));
+}
+
+// ---------- sending ----------
 async function sendMessage(ta) {
   const text = ta.value;
-  if (!text || !text.trim() || R.sending) return;
-  R.sending = true;
+  if (!text || !text.trim() || R.busy) return;
+  R.busy = true;
+  setState("");
   try {
-    if (R.session === null) {
-      const r = await R.ctx.api.post("/api/mc/session", { title: "thread " + new Date().toISOString().slice(0, 16).replace("T", " ") });
-      if (!R || R.dead) return;
-      const id = r.ok && r.data && r.data.result && (r.data.result.id || r.data.result.sessionId);
-      if (!id) { setState(`could not start a conversation: ${r.error || "HTTP " + r.status}`); return; }
-      R.session = id; storeSession(id);
-    }
-    const sid = R.session;
-    // draw my message immediately; the server's copy arrives on the next load
-    const d = R.sessionDetail;
-    if (d && Array.isArray(d.messages)) d.messages.push({ role: "user", content: text });
-    else R.sessionDetail = { messages: [{ role: "user", content: text }] };
-    ta.value = "";
-    renderLog();
-    const r = await R.ctx.api.post(`/api/mc/session/${sid}/message`, { content: text, uploads: R.files.map((u) => u.id) });
+    const r = await R.ctx.api.post("/api/loop/message", { thread: R.threadId, text: text.trim() });
     if (!R || R.dead) return;
-    if (!r.ok) { setState(`send failed: ${r.error || "HTTP " + r.status}`); return; }
-    R.files = [];
-    setState("");
-    // poll for the agent's reply (mission control is async)
-    const t0 = Date.now();
-    if (R.poll) clearInterval(R.poll);
-    R.poll = setInterval(async () => {
-      if (!R || R.dead || R.session !== sid) { if (R && R.poll) { clearInterval(R.poll); R.poll = null; } return; }
-      await loadSession(sid);
-      const msgs = R && R.sessionDetail && Array.isArray(R.sessionDetail.messages) ? R.sessionDetail.messages : [];
-      const last = msgs[msgs.length - 1];
-      if (last && last.role !== "user") { clearInterval(R.poll); R.poll = null; R.sending = false; renderLog(); }
-      else if (Date.now() - t0 > 180000) { clearInterval(R.poll); R.poll = null; R.sending = false; setState("no reply within 3 min — the agent may still be working; see the Agents panel"); renderLog(); }
-    }, 3000);
-  } finally {
-    if (R && !R.poll) R.sending = false;
-  }
+    if (!r.ok) { setState(r.error || `HTTP ${r.status}`); return; }
+    ta.value = "";
+    R.thread = r.data.thread;
+    R.threadId = r.data.thread.id;
+    storeTid(R.threadId);
+    const u = new URL(location.href); u.searchParams.set("thread", R.threadId); history.replaceState(null, "", u);
+    renderLog();
+    pollRuns(false);
+  } finally { R.busy = false; }
+}
+
+function setState(t) {
+  if (!R) return;
+  R.state = t;
+  const st = R.b.composer.querySelector(".t-state");
+  if (st) st.textContent = t;
 }
