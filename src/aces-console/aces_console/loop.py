@@ -392,8 +392,12 @@ def h_spec_confirm(req: Request) -> Response:
         busy = jobs._running(jobs._state(app), lambda j: j.kind == "golden.run")
         if busy is not None:
             return error(409, f"a golden run is already running ({busy.project}, job {busy.id}); one at a time", "busy")
-        argv = jobs._aces(["golden", "run", "--spec", str(spath), "--project", confirm, "--new",
-                           "--json", "--progress", "lines"])
+        # --new only when the project does not exist yet; a re-run lands as the project's next golden run
+        from aces import config as aces_config
+        exists = (Path(aces_config.WORK) / confirm / "aces.yaml").is_file()
+        args = ["golden", "run", "--spec", str(spath), "--project", confirm] + ([] if exists else ["--new"]) + \
+               ["--json", "--progress", "lines"]
+        argv = jobs._aces(args)
         if argv is None:
             return error(503, "aces CLI not found (aces-base is not installed)", "not-installed")
         job = jobs.Job("golden.run", confirm, f"golden run {confirm} (loop {tid}/{key})",

@@ -299,6 +299,12 @@ async function loadResult(chip, project) {
   if (res.report && res.report.md) dl.append(fileLink(base + res.report.md, "report (markdown)"));
   if (w.json) dl.append(fileLink(base + w.json, "winner.json"));
   if (dl.children.length) card.append(dl);
+  // spec sheet: edit the run's spec in the inspector and re-run as a sibling candidate
+  const sheetBtn = R.ctx.dom.button("Spec sheet", {
+    cls: "btn", title: "open this run's spec in the inspector: edit a value, re-run as a sibling candidate",
+    onclick: () => openSpecSheet(project, rid, metrics),
+  });
+  card.append(el("div.t-card-actions", [sheetBtn]));
   // iso render if the run wrote one
   const figs = Array.isArray(d.figures) ? d.figures : [];
   const label = w.label || "winner";
@@ -321,6 +327,95 @@ function fmtNum(v) {
   if (Math.abs(v) >= 1000) return v.toPrecision(5);
   if (Math.abs(v) >= 1) return v.toPrecision(4);
   return v.toExponential(2);
+}
+
+// ---------- the live spec sheet (inspector dock): edit → re-run → delta in the compare card ----------
+// Editable rows are the decision knobs; everything else in the spec is carried through untouched.
+const SHEET_FIELDS = [
+  ["resolution.gen_mm", "generator resolution (mm)", "number"],
+  ["resolution.fea_mm", "FEA resolution (mm)", "number"],
+  ["sweep.n", "designs in the sweep", "number"],
+  ["sweep.seed", "sampler seed", "number"],
+  ["generator.iterations", "SIMP iterations", "number"],
+  ["generator.variables.volfrac.lo", "volume fraction, low", "number"],
+  ["generator.variables.volfrac.hi", "volume fraction, high", "number"],
+  ["generator.variables.rmin_mm.lo", "min feature radius, low (mm)", "number"],
+  ["generator.variables.rmin_mm.hi", "min feature radius, high (mm)", "number"],
+  ["loads.0.force.2", "load force Z (N)", "number"],
+];
+
+function dig(obj, path) { return path.split(".").reduce((o, k) => (o === null || o === undefined ? o : o[k]), obj); }
+function digSet(obj, path, val) {
+  const ks = path.split(".");
+  let o = obj;
+  for (const k of ks.slice(0, -1)) { if (o[k] === null || o[k] === undefined) return false; o = o[k]; }
+  o[ks[ks.length - 1]] = val;
+  return true;
+}
+
+async function openSpecSheet(project, rid, priorMetrics) {
+  const { el, button } = R.ctx.dom;
+  const insp = R.ctx.inspector;
+  insp.show(el("div.prose.dim", { text: "loading the run's spec…" }), { name: `spec sheet · ${project}`, coord: rid });
+  const r = await R.ctx.api.get(`/api/golden/file/${encodeURIComponent(project)}/${rid}/inputs/spec.json`);
+  if (!R || R.dead) return;
+  if (!r.ok) {
+    insp.show(R.ctx.dom.note("spec unavailable", r.error || `HTTP ${r.status}`, { fault: true }), { name: `spec sheet · ${project}`, coord: rid });
+    return;
+  }
+  // the file route returns the file body; accept both envelope and raw object shapes
+  const spec = (r.data && r.data.schema === "aces-golden-spec/1") ? r.data : (r.data && r.data.data) || r.data;
+  if (!spec || typeof spec !== "object" || spec.schema !== "aces-golden-spec/1") {
+    insp.show(R.ctx.dom.note("spec unreadable", "inputs/spec.json did not arrive as an aces-golden-spec/1 object", { fault: true }), { name: `spec sheet · ${project}`, coord: rid });
+    return;
+  }
+  const wrap = el("div.sheet");
+  // current scores (read-only): what this run achieved
+  if (priorMetrics) {
+    const rows = Object.entries(priorMetrics).filter(([, v]) => typeof v === "number")
+      .map(([k, v]) => [METRIC_LABELS[k] || k, fmtNum(v)]);
+    wrap.append(el("div.sheet-sec", [el("div.sheet-cap", { text: "this run scored" }), R.ctx.dom.table(["metric", "value"], rows)]));
+  }
+  const inputs = {};
+  const tbl = el("table.t-score");
+  for (const [path, label, kind] of SHEET_FIELDS) {
+    const cur = dig(spec, path);
+    const inp = el("input", { type: "text", value: cur === null || cur === undefined ? "" : String(cur), "aria-label": label });
+    inp.dataset.path = path; inp.dataset.kind = kind;
+    if (cur === null || cur === undefined) { inp.disabled = true; inp.title = "not present in this spec"; }
+    inputs[path] = inp;
+    tbl.append(el("tr", [el("td", { text: label }), el("td", [inp])]));
+  }
+  wrap.append(el("div.sheet-sec", [el("div.sheet-cap", { text: "edit — the spec beneath follows" }), tbl]));
+  const raw = el("textarea.t-spec", { rows: "12", text: JSON.stringify(spec, null, 1), spellcheck: "false", "aria-label": "full spec JSON" });
+  const sync = () => { raw.value = JSON.stringify(spec, null, 1); };
+  for (const inp of Object.values(inputs)) {
+    inp.addEventListener("change", () => {
+      const v = inp.dataset.kind === "number" ? Number(inp.value) : inp.value;
+      if (inp.dataset.kind === "number" && !Number.isFinite(v)) { inp.value = String(dig(spec, inp.dataset.path) ?? ""); return; }
+      if (digSet(spec, inp.dataset.path, v)) sync();
+    });
+  }
+  raw.addEventListener("change", () => {
+    try { const parsed = JSON.parse(raw.value); Object.keys(spec).forEach((k) => delete spec[k]); Object.assign(spec, parsed); }
+    catch (e) { state.textContent = `JSON error: ${e.message}`; }
+  });
+  const state = el("span.t-state");
+  const rerun = button("Re-run with these values", {
+    cls: "btn primary",
+    title: "launches aces golden run with this edited spec as the same project's next run",
+    onclick: async () => {
+      rerun.disabled = true; state.textContent = "starting…";
+      const item = `${(R.thread && R.thread.runs.find((x) => x.project === project) || {}).item || "part"}-edit`;
+      const r2 = await R.ctx.api.post("/api/loop/spec/confirm", { thread: R.threadId, item, spec, confirm: project });
+      if (!R || R.dead) return;
+      if (r2.ok) { state.textContent = `job ${r2.data.job} started`; await loadThread(R.threadId); }
+      else { state.textContent = r2.error || `HTTP ${r2.status}`; rerun.disabled = false; }
+    },
+  });
+  wrap.append(el("div.sheet-sec", [el("div.sheet-cap", { text: "the full spec (advanced)" }), raw]));
+  wrap.append(el("div.t-card-actions", [state, rerun]));
+  insp.show(wrap, { name: `spec sheet · ${project}`, coord: `${rid} · edits re-run as the next candidate` });
 }
 
 // ---------- compare: siblings in one thread, side by side ----------
