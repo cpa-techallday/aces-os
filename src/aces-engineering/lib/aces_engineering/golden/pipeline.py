@@ -834,7 +834,7 @@ class _Pipeline:
 
     # ---- stage 8 ------------------------------------------------------------------------------------------------
     def stage_cfd(self) -> None:
-        """Tier-1 CFD: with a `flow:` block in the spec, template a PyFR case on the exported faceted STEP and —
+        """Tier-1 CFD: with a `flow:` block in the spec, template a PyFR case on the exported STL and —
         --cfd auto with a live rig lane — queue it on the rig and pull the result back. Never blocks the structural
         result: every gap is a skipped stage or a recorded dispatch state, not a run failure."""
         flow = self.eff.get("flow")
@@ -846,18 +846,18 @@ class _Pipeline:
             return
         label = self.label or "candidate"
         rec = _safe_json(self.run.path(label, f"{label}.json"))
-        step_info, stl_info = rec.get("step") or {}, rec.get("stl") or {}
-        step_path = self.run.path(step_info.get("path")) if step_info.get("written") else None
+        stl_info = rec.get("stl") or {}
+        stl_path = self.run.path(stl_info.get("path")) if stl_info.get("path") else None
         bbox = stl_info.get("bbox_mm")    # flat [x0, y0, z0, x1, y1, z1]
-        if not (step_path and step_path.is_file() and isinstance(bbox, list) and len(bbox) == 6):
-            self._skip(8, "cfd", "no verified faceted STEP with a bbox to mesh (see the export stage's step record)")
+        if not (stl_path and stl_path.is_file() and isinstance(bbox, list) and len(bbox) == 6):
+            self._skip(8, "cfd", "no verified STL with a bbox to mesh (see the export stage's stl record)")
             return
         self._begin(8, "cfd", f"PyFR case on the {label} part, {flow['velocity_mps']:g} m/s {flow['medium']}")
         cfd_mod, spec_mod = _mod("cfd"), _mod("spec")
         flow_model = spec_mod.Flow(**flow)
         cfd_dir = self.run.path("cfd", label)
         doc = cfd_mod.write_case(cfd_dir, name=cfd_mod.rig_experiment_id(self.run.run_id), label=label,
-                                 flow=flow_model, step_path=step_path,
+                                 flow=flow_model, stl_path=stl_path,
                                  bbox_mm=[float(x) for x in bbox], project=self.project,
                                  owner=self.operator, hypothesis=self.eff.get("hypothesis"))
         note = (f"Re {doc['reynolds']:.4g}, box {[round(x, 1) for x in doc['box_mm']]} mm, "

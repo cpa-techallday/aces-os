@@ -1,14 +1,16 @@
 """PyFR adapter, two stages:
 
-  mesh  (cpu)  either copy the case's .msh, or build one from a STEP body with gmsh
-               (case["mesh"] = {"from_step": "sphere.step", "box": [...], "lc_body": .., "lc_far": ..})
+  mesh  (cpu)  either copy the case's .msh, or build one from a geometry body with gmsh — a STEP B-rep
+               (box_minus_step) or an STL of a mesh-derived part (box_minus_stl), chosen by the suffix
+               (case["mesh"] = {"from_step": "sphere.step"|"winner.stl", "box": [...], "lc_body": .., "lc_far": ..})
   solve (sim)  patch the .ini (overrides + wall-force plugin), `pyfr import`, `pyfr run -b cuda`,
                post-process the force history to Cd / Cl rms / Strouhal
 
 Case params:
   case_dir         directory with exactly one .ini (and one .msh unless mesh.from_step is given), relative to the spec
-  mesh             optional gmsh block: from_step (relative to the spec), box [x0 y0 z0 x1 y1 z1], lc_body, lc_far,
-                   dist_min, dist_max, algorithm3d (default 10 = HXT), optimize (default true)
+  mesh             optional gmsh block: from_step (relative to the spec; names a .step/.stp or .stl file), box
+                   [x0 y0 z0 x1 y1 z1], lc_body, lc_far, dist_min, dist_max, algorithm3d (default 10 = HXT),
+                   optimize (default true)
   backend          cuda (default) | openmp
   precision        single | double (overrides [backend] precision)
   tend, dt, order  optional overrides of the time integrator / solver order
@@ -101,15 +103,18 @@ class Adapter:
         work = self._work(run_dir)
         t0 = time.time()
         if step:
-            from ..meshing import box_minus_step
+            from .. import meshing
 
             m = case["mesh"]
             stem = os.path.splitext(os.path.basename(step))[0]
             msh = os.path.join(work, stem + ".msh")
-            info = box_minus_step(step, msh, m["box"], float(m["lc_body"]), float(m["lc_far"]),
-                                  dist_min=m.get("dist_min"), dist_max=m.get("dist_max"),
-                                  algorithm3d=int(m.get("algorithm3d", 10)), optimize=bool(m.get("optimize", True)),
-                                  names=m.get("names"))
+            # the from_step key may name an STL (mesh-derived part, e.g. golden's winner): the STL path
+            # meshes with gmsh's built-in kernel, a STEP B-rep with OCC — the suffix decides
+            fn = meshing.box_minus_stl if step.lower().endswith(".stl") else meshing.box_minus_step
+            info = fn(step, msh, m["box"], float(m["lc_body"]), float(m["lc_far"]),
+                      dist_min=m.get("dist_min"), dist_max=m.get("dist_max"),
+                      algorithm3d=int(m.get("algorithm3d", 10)), optimize=bool(m.get("optimize", True)),
+                      names=m.get("names"))
             info.update({"source": "gmsh", "step": step})
         else:
             stem = os.path.splitext(os.path.basename(msh_src))[0]

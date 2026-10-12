@@ -1,11 +1,16 @@
 """Tier-1 CFD: template a PyFR case from the golden run's exported part and its `flow:` block.
 
 The chain is the validated one (registry solver `pyfr`, image simlab-pyfr:0.3, validation 2026-10-05): gmsh meshes
-box-minus-body around the faceted STEP with PyFR boundary names (inlet at x-min, outlet at x-max, farfield, wall),
+box-minus-body around the exported STL with PyFR boundary names (inlet at x-min, outlet at x-max, farfield, wall),
 the .ini is the sphere3d smoke deck with the flow's constants substituted, and the simlab experiment carries the
 adapter's case params (D, U, rho, ref_area, force_bc) so Cd / Cl rms / Strouhal come out normalised.
 
-Units, stated once and honestly: the exported STEP is in **mm** (golden is mm-N-MPa-kg), so the mesh and the PyFR
+The geometry uploaded is the winner's **STL**, not the faceted STEP: the STEP is an AP214 FACETED_BREP that OCC's
+reader cannot sew into a solid (every CFD dispatch died at "no solids in winner.step"), while the rig's mesh stage
+meshes an STL directly with gmsh's built-in kernel (box_minus_stl) — the STL is also the byte-exact source of the
+STEP, so nothing is lost.
+
+Units, stated once and honestly: the exported STL is in **mm** (golden is mm-N-MPa-kg), so the mesh and the PyFR
 run are in mm — nu is scaled to mm^2/s and U to mm/s, which leaves Re identical (dimensionless) and makes the
 adapter's force normalisation self-consistent with rho = 1 (Cd needs no density; SI drag force is recovered as
 Cd * 0.5 * rho_kgm3 * velocity_mps^2 * reference_area_m2). Time stays in seconds.
@@ -56,7 +61,7 @@ controller = none
 pseudo-controller = local-pi
 tstart = 0.0
 tend = {tend_s:.6g}
-dt = {dt_s:.6g}
+dt = {dt_s:.17g}
 pseudo-dt = {pseudo_dt_s:.6g}
 pseudo-niters-min = 3
 pseudo-niters-max = 12
@@ -89,7 +94,7 @@ file = residual.csv
 header = true
 
 [soln-plugin-writer]
-dt-out = {writer_dt_s:.6g}
+dt-out = {writer_dt_s:.17g}
 basedir = .
 basename = {stem}-{{t:.2f}}
 
@@ -169,6 +174,9 @@ def derived_case(flow: Any, bbox_mm: list[float]) -> dict:
     dist_max_m = float(flow.dist_max_m) if flow.dist_max_m else 2.0 * D_m
     dt_s = float(flow.dt_s) if flow.dt_s else lc_body_m / (12.0 * U)
     tend_s = float(flow.tend_s) if flow.tend_s else 20.0 * D_m / U
+    # PyFR refuses a writer dt-out that is not an integer multiple of dt ("Plugin call times must be
+    # multiples of dt"): tend/20 almost never is, so snap it to the nearest multiple of dt_s
+    writer_dt_s = dt_s * max(1, round(tend_s / 20.0 / dt_s))
     return {
         "velocity_mps": U, "nu_m2s": nu, "rho_kgm3": rho, "medium": med["source"],
         "reference_length_m": D_m, "reference_area_m2": A_m2, "reference_area_note": A_note,
@@ -177,7 +185,7 @@ def derived_case(flow: Any, bbox_mm: list[float]) -> dict:
         "dist_max_mm": dist_max_m * 1000.0,
         "nu_mm2s": nu * 1e6, "u_mms": U * 1000.0,
         "order": int(flow.order), "precision": str(flow.precision),
-        "dt_s": dt_s, "pseudo_dt_s": dt_s / 20.0, "tend_s": tend_s, "writer_dt_s": tend_s / 20.0,
+        "dt_s": dt_s, "pseudo_dt_s": dt_s / 20.0, "tend_s": tend_s, "writer_dt_s": writer_dt_s,
         "honesty": TEMPLATE_NOTE.format(order=flow.order, precision=flow.precision),
     }
 
@@ -220,7 +228,7 @@ def experiment_doc(d: dict, *, exp_id: str, project: str, owner: str, label: str
     }
 
 
-def write_case(cfd_dir: Path, *, name: str, label: str, flow: Any, step_path: Path, bbox_mm: list[float],
+def write_case(cfd_dir: Path, *, name: str, label: str, flow: Any, stl_path: Path, bbox_mm: list[float],
                project: str, owner: str, hypothesis: str | None = None) -> dict:
     """Write cfd/<label>/case/<label>.ini, the simlab experiment.yaml and cfd_case.json; return the case document.
 
@@ -233,18 +241,18 @@ def write_case(cfd_dir: Path, *, name: str, label: str, flow: Any, step_path: Pa
     case_dir.mkdir(parents=True, exist_ok=True)
     d = derived_case(flow, bbox_mm)
     (case_dir / f"{label}.ini").write_text(template_ini(d, label), encoding="utf-8")
-    step_rel = _posix_rel(step_path, cfd_dir)
+    stl_rel = _posix_rel(stl_path, cfd_dir)
     exp = experiment_doc(d, exp_id=name, project=project, owner=owner, label=label,
-                         step_rel=step_rel, case_dir_rel="case", hypothesis=hypothesis)
+                         step_rel=stl_rel, case_dir_rel="case", hypothesis=hypothesis)
     exp_path = cfd_dir / "experiment.yaml"
     with open(exp_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(exp, f, sort_keys=False, allow_unicode=True)
     doc = {"schema": "aces-golden-cfd/1", "label": label, "solver": "pyfr",
-           "experiment": _posix_rel(exp_path, cfd_dir), "step": step_rel, **d}
+           "experiment": _posix_rel(exp_path, cfd_dir), "stl": stl_rel, **d}
     with open(cfd_dir / "cfd_case.json", "w", encoding="utf-8") as f:
         json.dump(doc, f, indent=2)
     doc["experiment_doc"] = exp              # in-memory only: dispatch rewrites its paths for the rig's spec store
-    doc["step_abs"] = str(step_path)         # in-memory only: the bytes dispatch uploads
+    doc["stl_abs"] = str(stl_path)           # in-memory only: the bytes dispatch uploads
     return doc
 
 
@@ -270,13 +278,13 @@ def rig_experiment_id(run_id: str) -> str:
 
 
 def rig_experiment(doc: dict, exp_id: str) -> dict:
-    """The run-dir experiment rewritten for the rig's spec store: the case's .ini and STEP upload next to the spec
+    """The run-dir experiment rewritten for the rig's spec store: the case's .ini and STL upload next to the spec
     (<store>/<principal>/<exp_id>/...), so case_dir and mesh.from_step point there."""
     import copy
     exp = copy.deepcopy(doc["experiment_doc"])
     exp["id"] = exp_id
     exp["params"]["case_dir"] = f"{exp_id}/case"
-    exp["params"]["mesh"]["from_step"] = f"{exp_id}/{doc['label']}.step"
+    exp["params"]["mesh"]["from_step"] = f"{exp_id}/{doc['label']}.stl"  # from_step names the STL; the mesh stage branches on the suffix
     return exp
 
 
@@ -319,11 +327,11 @@ def dispatch(client: Any, *, cfd_dir: Path, doc: dict, exp_id: str, principal: s
 
     try:
         ini = (cfd_dir / "case" / f"{doc['label']}.ini").read_bytes()
-        step = Path(doc["step_abs"]).read_bytes()
+        stl = Path(doc["stl_abs"]).read_bytes()
         up1 = client.put_file(f"{exp_id}/case/{doc['label']}.ini", ini)
-        up2 = client.put_file(f"{exp_id}/{doc['label']}.step", step)
+        up2 = client.put_file(f"{exp_id}/{doc['label']}.stl", stl)
         rec["uploads"] = [{"name": f"{exp_id}/case/{doc['label']}.ini", "sha256": up1.get("sha256")},
-                          {"name": f"{exp_id}/{doc['label']}.step", "sha256": up2.get("sha256")}]
+                          {"name": f"{exp_id}/{doc['label']}.stl", "sha256": up2.get("sha256")}]
         exp = rig_experiment(doc, exp_id)
         text = yaml.safe_dump(exp, sort_keys=False, allow_unicode=True)
         (rig_dir / "spec.yaml").write_text(text, encoding="utf-8")

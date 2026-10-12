@@ -86,6 +86,22 @@ class DerivedCase(unittest.TestCase):
         self.assertAlmostEqual(d["pseudo_dt_s"], d["dt_s"] / 20.0)
         self.assertAlmostEqual(d["tend_s"], 20.0 * 0.08 / 30.0)
 
+    def test_writer_dt_is_a_multiple_of_dt(self):
+        # PyFR refuses dt-out that is not an integer multiple of dt (rig finding: "Plugin call times
+        # must be multiples of dt", tolerance 5*dt-min = 5e-12): the FORMATTED ini values must pass
+        d = cfd.derived_case(self.flow, BBOX_MM)
+        ratio = d["writer_dt_s"] / d["dt_s"]
+        self.assertAlmostEqual(ratio, round(ratio), places=9)
+        self.assertGreaterEqual(round(ratio), 1)
+        import math
+        cp = configparser.ConfigParser(interpolation=None)
+        cp.optionxform = str
+        cp.read_string(cfd.template_ini(d, "winner"))
+        dt = float(cp["solver-time-integrator"]["dt"])
+        dt_out = float(cp["soln-plugin-writer"]["dt-out"])
+        rem = math.fmod(dt_out, dt)
+        self.assertTrue(rem <= 5e-12 or (dt - rem) <= 5e-12, f"dt-out {dt_out} not a multiple of dt {dt}")
+
     def test_reference_area_default_is_labelled_approximation(self):
         d = cfd.derived_case(self.flow, BBOX_MM)
         self.assertAlmostEqual(d["reference_area_m2"], 40.0 * 20.0 / 1e6)
@@ -121,12 +137,12 @@ class WriteCase(unittest.TestCase):
         flow = spec.GoldenSpec(**flow_spec()).flow
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            step = root / "winner" / "winner.step"
-            step.parent.mkdir()
-            step.write_text("ISO-10303-21;\nEND-ISO-10303-21;", encoding="utf-8")
+            stl = root / "winner" / "winner.stl"
+            stl.parent.mkdir()
+            stl.write_bytes(b"solid winner\nendsolid winner\n")
             cfd_dir = root / "cfd" / "winner"
             doc = cfd.write_case(cfd_dir, name="g-cfd-test", label="winner", flow=flow,
-                                 step_path=step, bbox_mm=BBOX_MM, project="p", owner="aaron")
+                                 stl_path=stl, bbox_mm=BBOX_MM, project="p", owner="aaron")
             ini = cfd_dir / "case" / "winner.ini"
             exp_p = cfd_dir / "experiment.yaml"
             self.assertTrue(ini.is_file() and exp_p.is_file() and (cfd_dir / "cfd_case.json").is_file())
@@ -134,7 +150,7 @@ class WriteCase(unittest.TestCase):
             self.assertEqual((exp["physics"], exp["solver"]), ("cfd", "pyfr"))
             p = exp["params"]
             self.assertEqual(p["case_dir"], "case")
-            self.assertEqual(p["mesh"]["from_step"], "../../winner/winner.step")
+            self.assertEqual(p["mesh"]["from_step"], "../../winner/winner.stl")
             self.assertEqual(p["force_bc"], "wall")
             self.assertEqual(p["rho"], 1.0)   # kinematic normalisation, documented in the module docstring
             self.assertAlmostEqual(p["D"], doc["reference_length_m"] * 1000.0)
@@ -197,12 +213,12 @@ class FakeRig:
 def _written_case(td):
     flow = spec.GoldenSpec(**flow_spec()).flow
     root = Path(td)
-    step = root / "winner" / "winner.step"
-    step.parent.mkdir(parents=True, exist_ok=True)
-    step.write_text("ISO-10303-21;\nEND-ISO-10303-21;", encoding="utf-8")
+    stl = root / "winner" / "winner.stl"
+    stl.parent.mkdir(parents=True, exist_ok=True)
+    stl.write_bytes(b"solid winner\nendsolid winner\n")
     cfd_dir = root / "cfd" / "winner"
     doc = cfd.write_case(cfd_dir, name="run1-cfd", label="winner", flow=flow,
-                         step_path=step, bbox_mm=BBOX_MM, project="p", owner="aaron")
+                         stl_path=stl, bbox_mm=BBOX_MM, project="p", owner="aaron")
     return cfd_dir, doc
 
 
@@ -224,12 +240,13 @@ class RigDispatch(unittest.TestCase):
             self.assertEqual(rec["results"]["Cd_mean"], 1.31)
             self.assertEqual(sorted(rec["pulled"]), ["evidence.json", "results.json", "status.json"])
             self.assertTrue((cfd_dir / "rig" / "c000" / "results.json").is_file())
-            self.assertEqual(len(rig.uploads), 2)          # the ini and the STEP
+            self.assertEqual(len(rig.uploads), 2)          # the ini and the STL
+            self.assertEqual(rig.uploads, ["run1-cfd/case/winner.ini", "run1-cfd/winner.stl"])
             self.assertEqual(rig.submitted[1], "run1-cfd")
             self.assertTrue((cfd_dir / "rig" / "dispatch.json").is_file())
             # the rig experiment's paths point into the spec store, not the local tree
             self.assertIn("run1-cfd/case", rig.spec_text)
-            self.assertIn("run1-cfd/winner.step", rig.spec_text)
+            self.assertIn("run1-cfd/winner.stl", rig.spec_text)
 
     def test_failed_case_quotes_the_rig(self):
         with tempfile.TemporaryDirectory() as td:

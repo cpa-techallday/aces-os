@@ -91,7 +91,9 @@ def write_faceted_step(stl_path: Path, step_path: Path, *, name: str = "part") -
         return n
 
     def fmt(v) -> str:
-        return f"({v[0]:.6g},{v[1]:.6g},{v[2]:.6g})"
+        # 12 significant digits: the mesh's float32 coordinates round-trip exactly, and derived curves/planes stay
+        # within OCC's sewing tolerance (%.6g rounding broke it — import-time sewing failed, no solids)
+        return f"({v[0]:.12g},{v[1]:.12g},{v[2]:.12g})"
 
     safe = name.replace("'", "")
     add("ISO-10303-21;")

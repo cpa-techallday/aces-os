@@ -1,8 +1,8 @@
 # Vendored snapshot of cudax-sim-runtime (written by sync.sh; do not edit by hand)
-source: /c/Users/shedm/cudax-sim-runtime @ 4a4bc80a68ac1218cef0f59ff90bcf99b7600738 (clean clone)
-synced_utc: 2026-10-12T06:26:24Z
-source_commit: 4a4bc80a68ac1218cef0f59ff90bcf99b7600738 (clean clone at 4a4bc80a68ac1218cef0f59ff90bcf99b7600738; 0 uncommitted changes)
-content_sha256: 68b4df7c91e837cd355736a81b620b3775624ea2d052f9855326e8c72b125ca3
+source: /c/Users/shedm/cudax-sim-runtime @ 00c48451179f221996690cba9468d8f95f77c47d (clean clone)
+synced_utc: 2026-10-12T22:30:12Z
+source_commit: 00c48451179f221996690cba9468d8f95f77c47d (clean clone at 00c48451179f221996690cba9468d8f95f77c47d; 0 uncommitted changes)
+content_sha256: db7b4bfb291d4d848c1de05afd42349f2c37f6c9aa0afd2f542bc3e6e5b45879
 files: 63
 excluded: __pycache__, simlab/solvers.json.bak-*, simlab/console (rig-hosted UI)
 line_endings: normalised to LF on copy (source files are CRLF)
@@ -36,7 +36,7 @@ f1fc832368d08f973acc1440d419b3e1378451b13ec044d8d92b64ccbd2727cb *simlab/evidenc
 bf9ae2dc39e07005a9e7b39a3719ef16d6466a0605a3f83c8da9204216d00e55 *simlab/fusion_export.py
 6dcbf9a1a92d803933f1fc3ded66e22f570ebe9d18e0a7786f84e4adb2a13da7 *simlab/leases.py
 09175a03bb2e5e9f28163b4b8dc51dc457f3720725429e3bbe1b9b5febb124ad *simlab/mcp_server.py
-941296fce198ffbabcbf4f96ab9fe55596093167d40c48cfdc08bab8a741972f *simlab/meshing.py
+c1d32355d841984ef05e822371210d582ce42fc7f6576aa43f90a1a08c1499e7 *simlab/meshing.py
 93c7e1c9aeb4a1922931d72e894920e4b0c0cd09ba6cddf5dbd901cbea90c2b9 *simlab/modes.json
 80ade4c3bd96d0f8b48b4264ab9a56b046e37947ce14c4f7a48d3da39ecdfa8e *simlab/post.py
 7f97f647283fcdf1b4377e5d4e763c8b850def97d3f8959464926f9c60c2393d *simlab/queue.py
@@ -57,7 +57,7 @@ ec8b882f4827221d083395027114c1868954d7c667b0f24227ffc9ab6ab3e2f9 *simlab/solvers
 3a16a2c65e29610742643501f1021af8d839cbc6b9f7bb218a74203fa14cc795 *simlab/solvers/golden_case.py
 384487c3e41eb98e5e5f03bfcb78d6122ef61d2e4ec5908cc7f398427b4c74bb *simlab/solvers/golden_check.py
 5b4316b8376d2d19fd3a47987124a0fb9e5a26ff4c6f03da25152ef90e59c4ad *simlab/solvers/nozzle_angelino.py
-0780de0e72f0e349d0ca1b4851cf15c443851773ae8d96e71187e255e1bf3eab *simlab/solvers/pyfr_solver.py
+8599df8d699e3e5e3b1532999131254f5036d7ccba254292b88055d4d909942e *simlab/solvers/pyfr_solver.py
 103497387087a2d1ab406911d9ab12e5d416cb1471191b43737e5923f715dd3d *simlab/solvers/step_structures.py
 ae111c4b4484e5ea5f87e38d5231016fd5851c9d6c94b71af8cbf5cb59fd0c5e *simlab/solvers/surrogate_predict.py
 b2e335e305ef66ec9327158d28f16e4b1e92366ba12e3814689704939dea0aa2 *simlab/spec.py
