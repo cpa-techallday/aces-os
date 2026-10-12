@@ -43,19 +43,19 @@ G = 9.80665
 MATERIALS = {
     # keyword: (material record — properties are typical room-temperature values, named as such in the draft)
     "6061": {"name": "aluminium-6061-T6", "E_MPa": 68900.0, "nu": 0.33, "rho_kg_mm3": 2.70e-6,
-             "yield_MPa": 276.0, "source": "typical handbook values (loop draft)"},
+             "allowable_vm_MPa": 276.0, "source": "typical handbook values (loop draft)"},
     "aluminium": "6061", "aluminum": "6061", "alloy": "6061",
     "ti64": {"name": "titanium-Ti-6Al-4V", "E_MPa": 113800.0, "nu": 0.342, "rho_kg_mm3": 4.43e-6,
-             "yield_MPa": 880.0, "source": "typical handbook values (loop draft)"},
+             "allowable_vm_MPa": 880.0, "source": "typical handbook values (loop draft)"},
     "titanium": "ti64",
     "steel": {"name": "steel-S355", "E_MPa": 210000.0, "nu": 0.30, "rho_kg_mm3": 7.85e-6,
-              "yield_MPa": 355.0, "source": "typical handbook values (loop draft)"},
+              "allowable_vm_MPa": 355.0, "source": "typical handbook values (loop draft)"},
     "abs": {"name": "abs-printed", "E_MPa": 2000.0, "nu": 0.35, "rho_kg_mm3": 1.04e-6,
-            "yield_MPa": 40.0, "source": "typical handbook values (loop draft)"},
+            "allowable_vm_MPa": 40.0, "source": "typical handbook values (loop draft)"},
     "nylon": {"name": "pa12-printed", "E_MPa": 1700.0, "nu": 0.39, "rho_kg_mm3": 1.01e-6,
-              "yield_MPa": 45.0, "source": "typical handbook values (loop draft)"},
+              "allowable_vm_MPa": 45.0, "source": "typical handbook values (loop draft)"},
     "petg": {"name": "petg-printed", "E_MPa": 2100.0, "nu": 0.36, "rho_kg_mm3": 1.27e-6,
-             "yield_MPa": 50.0, "source": "typical handbook values (loop draft)"},
+             "allowable_vm_MPa": 50.0, "source": "typical handbook values (loop draft)"},
 }
 
 KINDS = ("bracket", "mount", "frame", "chassis", "enclosure", "housing", "antenna", "duct", "impeller",
@@ -82,9 +82,20 @@ def parse_request(text: str) -> dict[str, Any]:
             out["material"] = MATERIALS[mat] if isinstance(mat, str) else mat
             break
     c = out["constraints"]
-    m = re.search(rf"\b{NUM}\s*(?:kg|kilogram)", t)
-    if m and ("hold" in t or "carry" in t or "load" in t or "kg" in t):
-        c["payload_kg"] = float(m.group(1))
+    # kg mentions are classified by direction: a payload word before the number ("holds 15 kg", "carrying 200 kg")
+    # means payload; a vehicle word after it ("1500 kg off-roader") means the vehicle's own mass, which is not a
+    # payload. A kg number with no context either way falls back to payload ("15 kg bracket").
+    VEHICLE_CTX = r"\b(?:vehicle|rover|off-?roader|curb|gross|buggy|truck|car|chassis)"
+    PAYLOAD_CTX = r"\b(?:hold|carry|carrying|payload|load|lift|bear|tow)"
+    for m0 in re.finditer(rf"\b{NUM}\s*(?:kg|kilogram)s?\b", t):
+        before, after = t[max(0, m0.start() - 25):m0.start()], t[m0.end():m0.end() + 25]
+        val = float(m0.group(1))
+        if re.search(PAYLOAD_CTX, before) or re.search(r"\bpayload\b", after):
+            c.setdefault("payload_kg", val)
+        elif re.search(VEHICLE_CTX, after) or re.search(VEHICLE_CTX, before):
+            c.setdefault("vehicle_mass_kg", val)
+        elif "payload_kg" not in c:
+            c["payload_kg"] = val
     m = re.search(rf"\b{NUM}\s*kn\b", t)
     if m:
         c["load_N"] = float(m.group(1)) * 1000.0
@@ -113,18 +124,15 @@ def parse_request(text: str) -> dict[str, Any]:
     m = re.search(rf"\b{NUM}\s*[x×]\s*{NUM}\s*[x×]\s*{NUM}\s*mm\b", t)
     if m:
         c["envelope_mm"] = [float(m.group(i)) for i in (1, 2, 3)]
-    m = re.search(rf"\b{NUM}\s*(?:kg|kilogram).*(?:vehicle|rover|off-?roader|curb|gross)", t) or \
-        re.search(rf"(?:vehicle|rover|off-?roader|curb|gross).*\b{NUM}\s*(?:kg|kilogram)", t)
-    if m:
-        c["vehicle_mass_kg"] = float(m.group(1))
     # physics inference
-    if any(k in c for k in ("payload_kg", "load_N", "shock_g")) or out["kind"] in KINDS:
+    if any(k in c for k in ("payload_kg", "load_N", "shock_g", "vehicle_mass_kg")) or out["kind"] in KINDS:
         out["physics"].add("structures")
     if "max_temp_C" in c or "cooling" in t or "thermal" in t or "heat" in t:
         out["physics"].add("thermal")
     if "velocity_ms" in c or "drag" in t or "airflow" in t or "aero" in t or "flow_medium" in c:
         out["physics"].add("cfd")
-    if any(w in t for w in ("antenna", "radar", "rf", "s11", "gain db")):
+    # whole words only: "rf" as a substring matches "airflow"
+    if re.search(r"\b(?:antenna|radar|rf|s11)\b", t) or "gain db" in t:
         out["physics"].add("em")
     for phys, words in UNWIRED_PHYSICS.items():
         if any(w in t for w in words):
@@ -200,6 +208,9 @@ def build_plan(req: dict[str, Any]) -> dict[str, Any]:
         items.append({"key": "vehicle-integration", "title": "whole-vehicle dynamics",
                       "physics": ["multibody"], "answers": "ride, articulation, rollover",
                       "wired": False, "reason": "multibody dynamics is not wired yet (Tier 3) — tracked"})
+        # a vehicle that names a speed gets its cfd item like any other request (drag matters at speed)
+        if "cfd" in physics:
+            items.append(_cfd_item(req, "vehicle"))
     else:
         bits = []
         if "payload_kg" in c:
@@ -240,6 +251,11 @@ def spec_draft(req: dict[str, Any], item: dict[str, Any], slug: str) -> dict[str
     c = req["constraints"]
     mat = req["material"] or MATERIALS["6061"]
     load_N = c.get("load_N") or (c.get("payload_kg", 0.0) * G * (c.get("shock_g", 1.0)) if c.get("payload_kg") else None)
+    load_basis = None
+    if load_N is None and item.get("key") == "chassis" and c.get("vehicle_mass_kg"):
+        # a chassis carries the vehicle: the vehicle's own mass is the service load, named as such
+        load_N = c["vehicle_mass_kg"] * G * c.get("shock_g", 1.0)
+        load_basis = f"vehicle mass {c['vehicle_mass_kg']:g} kg x {c.get('shock_g', 1.0):g} g (loop draft)"
     spec = {
         "schema": "aces-golden-spec/1",
         "name": slug[:48],
@@ -249,15 +265,19 @@ def spec_draft(req: dict[str, Any], item: dict[str, Any], slug: str) -> dict[str
         "material": mat,
         "objective": {"output": "mass_kg", "sense": "min"},
         "generator": {"kind": "simp-organic",
-                      "variables": {"volfrac": {"lo": 0.08, "hi": 0.35}, "rmin_mm": {"lo": 1.5, "hi": 4.0}},
+                      # rmin lo honours golden's under-resolution gate: rmin_mm >= 1.5 x gen_mm (2.0) = 3.0 mm
+                      "variables": {"volfrac": {"lo": 0.08, "hi": 0.35}, "rmin_mm": {"lo": 3.0, "hi": 6.0}},
                       "fixed": {"penal": 3.0}, "iterations": 25},
         "resolution": {"gen_mm": 2.0, "fea_mm": 1.0},
         "sweep": {"n": 10, "seed": 0},
     }
     missing = []
     if load_N is not None:
-        spec["loads"] = [{"name": "service+shock", "box": None, "force": [0.0, 0.0, -load_N],
-                          "_note": "placement box unresolved until the design space is known"}]
+        load = {"name": "service+shock", "box": None, "force": [0.0, 0.0, -load_N],
+                "_note": "placement box unresolved until the design space is known"}
+        if load_basis:
+            load["_basis"] = load_basis
+        spec["loads"] = [load]
     else:
         spec["loads"] = []
         missing.append("loads: no load was parsed from the message — say e.g. “holds 15 kg” or “2 kN”")

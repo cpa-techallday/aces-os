@@ -115,8 +115,9 @@ class CfdDraftTest(unittest.TestCase):
         self.assertIn("name a speed to run CFD", str(ctx.exception))
 
 
-class StructuresOnlyUnchangedTest(unittest.TestCase):
-    """A structures-only request must produce byte-identical parse, plan and draft output to before the CFD wiring."""
+class StructuresOnlyPinnedTest(unittest.TestCase):
+    """The structures-only request's parse, plan and draft shape is pinned (the draft carries the corrected
+    material key and rmin range — golden's Material model and resolution gate — since the P6 acceptance fixes)."""
 
     TEXT = "bracket holds 15 kg"
 
@@ -137,7 +138,7 @@ class StructuresOnlyUnchangedTest(unittest.TestCase):
                                 "missing_geometry": True,
                                 "est": "one golden run per wired item; wall time minutes (desktop) to tens of minutes (rig)"})
 
-    def test_draft_is_unchanged(self):
+    def test_draft_shape_is_pinned(self):
         req = loop.parse_request(self.TEXT)
         item = loop.build_plan(req)["items"][0]
         draft = loop.spec_draft(req, item, "abcd1234-bracket")
@@ -151,7 +152,7 @@ class StructuresOnlyUnchangedTest(unittest.TestCase):
             "material": loop.MATERIALS["6061"],
             "objective": {"output": "mass_kg", "sense": "min"},
             "generator": {"kind": "simp-organic",
-                          "variables": {"volfrac": {"lo": 0.08, "hi": 0.35}, "rmin_mm": {"lo": 1.5, "hi": 4.0}},
+                          "variables": {"volfrac": {"lo": 0.08, "hi": 0.35}, "rmin_mm": {"lo": 3.0, "hi": 6.0}},
                           "fixed": {"penal": 3.0}, "iterations": 25},
             "resolution": {"gen_mm": 2.0, "fea_mm": 1.0},
             "sweep": {"n": 10, "seed": 0},
@@ -161,6 +162,67 @@ class StructuresOnlyUnchangedTest(unittest.TestCase):
             "_missing": ["supports: where is it held/bolted? (needs the design space)",
                          "domain: the design space — attach a STEP, pick a demo (root-mount, bone), or name an envelope in mm"],
             "_constraints_not_in_structural_spec": {}})
+
+
+class P6AcceptanceFixesTest(unittest.TestCase):
+    """The defects the P6 acceptance drive (2026-10-12) found: drafts must confirm unedited against golden's models,
+    the vehicle's own mass is not a payload, and "airflow" is not an EM keyword ("rf" inside it)."""
+
+    def test_draft_material_matches_goldens_material_model(self):
+        # aces_engineering.golden.spec.Material fields (aces-engineering is not a console dependency: pinned here)
+        fields = {"name", "E_MPa", "nu", "rho_kg_mm3", "allowable_vm_MPa", "source"}
+        for key, mat in loop.MATERIALS.items():
+            if isinstance(mat, str):
+                continue
+            self.assertEqual(set(mat), fields, key)
+            self.assertGreater(mat["allowable_vm_MPa"], 0.0, key)
+
+    def test_draft_honours_goldens_resolution_gate(self):
+        # golden refuses rmin_mm lo under 1.5 x gen_mm (golden/spec.py resolution guard)
+        draft = loop.spec_draft(loop.parse_request("bracket holds 15 kg"),
+                                {"key": "bracket", "title": "bracket — holds 15 kg", "physics": ["structures"]},
+                                "abcd1234-bracket")
+        rmin_lo = draft["generator"]["variables"]["rmin_mm"]["lo"]
+        gen = draft["resolution"]["gen_mm"]
+        self.assertGreaterEqual(rmin_lo, 1.5 * gen)
+
+    def test_vehicle_mass_is_not_a_payload(self):
+        c = loop.parse_request("a 1500 kg six-wheeled off-roader, military spec, electric drive, "
+                               "50 kWh battery")["constraints"]
+        self.assertEqual(c.get("vehicle_mass_kg"), 1500.0)
+        self.assertNotIn("payload_kg", c)
+        self.assertEqual(c.get("battery_kWh"), 50.0)
+
+    def test_vehicle_mass_and_payload_together(self):
+        c = loop.parse_request("a 1500 kg off-roader carrying 200 kg of gear")["constraints"]
+        self.assertEqual(c.get("vehicle_mass_kg"), 1500.0)
+        self.assertEqual(c.get("payload_kg"), 200.0)
+
+    def test_chassis_draft_load_is_the_vehicle_mass(self):
+        req = loop.parse_request("a 1500 kg six-wheeled off-roader with a tessellated chassis")
+        item = next(i for i in loop.build_plan(req)["items"] if i["key"] == "chassis")
+        draft = loop.spec_draft(req, item, "abcd1234-chassis")
+        self.assertEqual(len(draft["loads"]), 1)
+        self.assertAlmostEqual(-draft["loads"][0]["force"][2], 1500.0 * G)
+        self.assertIn("vehicle mass 1500 kg", draft["loads"][0]["_basis"])
+        self.assertFalse(any(m.startswith("loads:") for m in draft["_missing"]),
+                         "the vehicle mass is the chassis load — it is not missing")
+
+    def test_airflow_is_not_an_em_keyword(self):
+        req = loop.parse_request("bracket in 30 m/s airflow")
+        self.assertNotIn("em", req["physics"])
+        plan = loop.build_plan(req)
+        self.assertFalse(any(i["physics"] == ["em"] for i in plan["items"]))
+        # and the real EM words still match
+        for text in ("antenna for the tile", "radar bracket", "rf front-end mount", "s11 of the array"):
+            self.assertIn("em", loop.parse_request(text)["physics"], text)
+
+    def test_vehicle_with_a_speed_gets_a_cfd_item(self):
+        plan = loop.build_plan(loop.parse_request("a 1500 kg off-roader, top speed 120 km/h, drag matters"))
+        item = next((i for i in plan["items"] if i["physics"] == ["cfd"]), None)
+        self.assertIsNotNone(item)
+        self.assertTrue(item["wired"])
+        self.assertAlmostEqual(item["flow"]["velocity_mps"], 120.0 / 3.6)
 
 
 class LoopHttpTest(unittest.TestCase):
