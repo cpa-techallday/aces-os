@@ -305,7 +305,7 @@ class Flow(_Model):
     reference_length_m: PositiveFloat | None = None   # default: part bbox extent along +x
     reference_area_m2: PositiveFloat | None = None    # default: bbox frontal area (an approximation, labelled)
     farfield: tuple[PositiveFloat, PositiveFloat, PositiveFloat] = (3.0, 9.0, 3.0)  # upstream, downstream, lateral, x D
-    lc_body_m: PositiveFloat | None = None   # wall cell size; default reference_length / 8
+    lc_body_m: PositiveFloat | None = None   # wall cell size; default min(resolution.fea_mm, reference_length / 8)
     lc_far_m: PositiveFloat | None = None    # farfield cell size; default reference_length
     dist_max_m: PositiveFloat | None = None  # refinement halo; default 2 x reference_length
     order: int = Field(2, ge=1, le=5)

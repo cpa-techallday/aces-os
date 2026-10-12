@@ -145,11 +145,12 @@ def medium(flow: Any) -> dict:
     return base
 
 
-def derived_case(flow: Any, bbox_mm: list[float]) -> dict:
+def derived_case(flow: Any, bbox_mm: list[float], fea_mm: float | None = None) -> dict:
     """Everything the case needs, derived from the flow block and the part's bounding box (mm, part frame).
 
     bbox_mm is [x0, y0, z0, x1, y1, z1]. The farfield box follows the mesh stage's naming: inlet on x-min,
-    outlet on x-max — the flow is +x by construction (see spec.Flow).
+    outlet on x-max — the flow is +x by construction (see spec.Flow). fea_mm is the spec's FEA feature scale
+    (resolution.fea_mm), used to bound the default wall cell size.
     """
     ext = [float(bbox_mm[i + 3]) - float(bbox_mm[i]) for i in range(3)]
     if min(ext) <= 0:
@@ -169,7 +170,18 @@ def derived_case(flow: Any, bbox_mm: list[float]) -> dict:
               float(bbox_mm[3]) + down * D_m * 1000.0,
               cx[1] + lat * D_m * 1000.0,
               cx[2] + lat * D_m * 1000.0]
-    lc_body_m = float(flow.lc_body_m) if flow.lc_body_m else D_m / 8.0
+    # Default wall cell: the finer of the spec's feature scale and D/8. D/8 alone NaN-diverged on the rig
+    # (P6 ex3: bracket walls ~4 mm against lc_body = D/8 = 10.3 mm — Re ~1.7e5 under-resolved at ~6k tets,
+    # divergence at t = 0.0018358 s in both precisions). fea_mm is the finest scale the generator/verify
+    # chain resolves, so min(fea_mm, D/8) bounds the wall cell to a scale that exists in the part.
+    if flow.lc_body_m:
+        lc_body_m, lc_basis = float(flow.lc_body_m), "flow.lc_body_m (set in the spec)"
+    elif fea_mm:
+        d8 = D_m * 1000.0 / 8.0
+        lc_body_m = min(float(fea_mm), d8) / 1000.0
+        lc_basis = f"min(fea_mm {float(fea_mm):g}, D/8 {d8:g}) mm — feature-scale bound"
+    else:
+        lc_body_m, lc_basis = D_m / 8.0, "D/8 (no fea_mm available)"
     lc_far_m = float(flow.lc_far_m) if flow.lc_far_m else D_m
     dist_max_m = float(flow.dist_max_m) if flow.dist_max_m else 2.0 * D_m
     dt_s = float(flow.dt_s) if flow.dt_s else lc_body_m / (12.0 * U)
@@ -181,7 +193,8 @@ def derived_case(flow: Any, bbox_mm: list[float]) -> dict:
         "velocity_mps": U, "nu_m2s": nu, "rho_kgm3": rho, "medium": med["source"],
         "reference_length_m": D_m, "reference_area_m2": A_m2, "reference_area_note": A_note,
         "reynolds": Re, "flow_direction": "+x (the mesh stage names inlet/outlet by the box's x faces)",
-        "box_mm": box_mm, "lc_body_mm": lc_body_m * 1000.0, "lc_far_mm": lc_far_m * 1000.0,
+        "box_mm": box_mm, "lc_body_mm": lc_body_m * 1000.0, "lc_body_basis": lc_basis,
+        "lc_far_mm": lc_far_m * 1000.0,
         "dist_max_mm": dist_max_m * 1000.0,
         "nu_mm2s": nu * 1e6, "u_mms": U * 1000.0,
         "order": int(flow.order), "precision": str(flow.precision),
@@ -229,17 +242,18 @@ def experiment_doc(d: dict, *, exp_id: str, project: str, owner: str, label: str
 
 
 def write_case(cfd_dir: Path, *, name: str, label: str, flow: Any, stl_path: Path, bbox_mm: list[float],
-               project: str, owner: str, hypothesis: str | None = None) -> dict:
+               project: str, owner: str, hypothesis: str | None = None, fea_mm: float | None = None) -> dict:
     """Write cfd/<label>/case/<label>.ini, the simlab experiment.yaml and cfd_case.json; return the case document.
 
     Paths inside the experiment are relative to the experiment file, as simlab's spec.resolve expects.
+    fea_mm (the spec's resolution.fea_mm) bounds the default wall cell size — see derived_case.
     """
     import yaml  # lazy: importing golden.cfd stays stdlib-only
 
     cfd_dir = Path(cfd_dir)
     case_dir = cfd_dir / "case"
     case_dir.mkdir(parents=True, exist_ok=True)
-    d = derived_case(flow, bbox_mm)
+    d = derived_case(flow, bbox_mm, fea_mm=fea_mm)
     (case_dir / f"{label}.ini").write_text(template_ini(d, label), encoding="utf-8")
     stl_rel = _posix_rel(stl_path, cfd_dir)
     exp = experiment_doc(d, exp_id=name, project=project, owner=owner, label=label,

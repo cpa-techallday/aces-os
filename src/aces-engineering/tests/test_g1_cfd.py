@@ -117,6 +117,28 @@ class DerivedCase(unittest.TestCase):
         d = cfd.derived_case(self.flow, BBOX_MM)
         self.assertIn("not a converged drag value", d["honesty"])
 
+    def test_lc_body_defaults_to_feature_scale_when_finer(self):
+        # P6 ex3 rig finding: lc_body = D/8 = 10 mm against ~4 mm walls NaN-diverged (t = 0.0018358 s,
+        # both precisions); the default now bounds the wall cell by the spec's feature scale
+        d = cfd.derived_case(self.flow, BBOX_MM, fea_mm=1.0)
+        self.assertAlmostEqual(d["lc_body_mm"], 1.0)
+        self.assertIn("fea_mm", d["lc_body_basis"])
+
+    def test_lc_body_d8_when_feature_scale_is_coarser(self):
+        d = cfd.derived_case(self.flow, BBOX_MM, fea_mm=100.0)
+        self.assertAlmostEqual(d["lc_body_mm"], 80.0 / 8.0)
+
+    def test_lc_body_explicit_spec_value_wins(self):
+        flow = spec.GoldenSpec(**flow_spec(lc_body_m=0.005)).flow
+        d = cfd.derived_case(flow, BBOX_MM, fea_mm=1.0)
+        self.assertAlmostEqual(d["lc_body_mm"], 5.0)
+        self.assertIn("spec", d["lc_body_basis"])
+
+    def test_lc_body_d8_without_feature_scale(self):
+        d = cfd.derived_case(self.flow, BBOX_MM)
+        self.assertAlmostEqual(d["lc_body_mm"], 80.0 / 8.0)
+        self.assertIn("D/8", d["lc_body_basis"])
+
 
 class TemplateIni(unittest.TestCase):
     def test_ini_parses_and_carries_the_flow(self):

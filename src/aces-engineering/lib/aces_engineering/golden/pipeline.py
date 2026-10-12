@@ -859,7 +859,8 @@ class _Pipeline:
         doc = cfd_mod.write_case(cfd_dir, name=cfd_mod.rig_experiment_id(self.run.run_id), label=label,
                                  flow=flow_model, stl_path=stl_path,
                                  bbox_mm=[float(x) for x in bbox], project=self.project,
-                                 owner=self.operator, hypothesis=self.eff.get("hypothesis"))
+                                 owner=self.operator, hypothesis=self.eff.get("hypothesis"),
+                                 fea_mm=float((self.eff.get("derived") or {}).get("fea_mm") or 0.0) or None)
         note = (f"Re {doc['reynolds']:.4g}, box {[round(x, 1) for x in doc['box_mm']]} mm, "
                 f"case in {self.run.rel(cfd_dir)}")
         session = self.session
