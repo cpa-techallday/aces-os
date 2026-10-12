@@ -189,3 +189,26 @@ input.t-project {
 .t-run-state.fault { color: #f08a8a; }
 a.t-run-link { color: #7fb6d9; text-decoration: none; border-bottom: 1px dotted #2c5273; }
 a.t-run-link:hover { color: #a8d4ef; }
+
+/* ---------- result + compare cards ---------- */
+.t-result { border-color: #1d4a3a; }
+.t-result-head { display: flex; gap: 8px; align-items: center; }
+.t-grade { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; }
+.t-grade.best { background: #0a2e1c; color: #7dd8b0; border: 1px solid #1d5a3a; }
+.t-grade.good { background: #0b2a3e; color: #7fb6d9; border: 1px solid #1d4a6a; }
+.t-grade.plain { background: #16233a; color: #9fb6cf; border: 1px solid #2c4260; }
+.t-outcome { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid #2c4260; color: #9fb6cf; }
+.t-outcome.pass { color: #7dd8b0; border-color: #1d4a3a; }
+.t-verdict { font-size: 14px; line-height: 1.6; color: #dbe7f3; }
+table.t-score { border-collapse: collapse; width: 100%; }
+table.t-score td { padding: 5px 8px; font-size: 13px; border-bottom: 1px solid #12334f; color: #c9dcf0; }
+table.t-score td:first-child { color: #8aa0b8; }
+.t-downloads { display: flex; flex-wrap: wrap; gap: 8px; }
+a.t-dl { font-size: 13px; color: #7fb6d9; background: #0d2036; border: 1px solid #1d4a6a; border-radius: 8px; padding: 6px 12px; text-decoration: none; }
+a.t-dl:hover { color: #a8d4ef; border-color: #2c6a94; }
+img.t-render { max-width: 100%; border-radius: 10px; border: 1px solid #17314f; background: #061225; }
+.t-compare-tbl { border-collapse: collapse; width: 100%; }
+.t-compare-tbl th, .t-compare-tbl td { padding: 6px 10px; font-size: 13px; text-align: left; border-bottom: 1px solid #12334f; }
+.t-compare-tbl th { color: #9fc3e3; font-weight: 600; }
+.t-compare-tbl td { color: #c9dcf0; }
+.t-compare-tbl td:first-child { color: #8aa0b8; }

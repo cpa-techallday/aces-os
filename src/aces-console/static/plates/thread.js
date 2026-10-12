@@ -241,9 +241,113 @@ async function watchJob(chip, jobId) {
   if (!r.ok) { st.textContent = `job state unavailable: ${r.error}`; return; }
   const j = r.data;
   const status = j.status || (j.exit !== null && j.exit !== undefined ? "exited" : "unknown");
-  if (status === "running") { st.textContent = "running…"; st.className = "t-run-state live"; }
-  else if (j.exit === 0) { st.textContent = "finished — result ready"; st.className = "t-run-state done"; }
+  if (status === "running") { st.textContent = "running…"; st.className = "t-run-state live"; return; }
+  if (j.exit === 0) { st.textContent = "finished — result below"; st.className = "t-run-state done"; }
   else if (j.exit !== null && j.exit !== undefined) { st.textContent = `exited ${j.exit} — see the job log`; st.className = "t-run-state fault"; }
+  else return;
+  if (!chip.dataset.resultLoaded) { chip.dataset.resultLoaded = "1"; loadResult(chip, chip.dataset.project); }
+}
+
+// ---------- result card: the run's own words and numbers, nothing invented ----------
+const METRIC_LABELS = { mass_kg: "mass (kg)", mass_voxel_kg: "voxel mass (kg)", mesh_volume_mm3: "mesh volume (mm³)", voxel_volume_mm3: "voxel volume (mm³)", compliance_Nmm: "compliance (N·mm)", umax_mm: "max displacement (mm)", vm_max_MPa: "max von Mises (MPa)", vm_p99_MPa: "p99 von Mises (MPa)", vm_p95_MPa: "p95 von Mises (MPa)" };
+
+async function latestRunId(project) {
+  const r = await R.ctx.api.get(`/api/golden/runs?project=${encodeURIComponent(project)}`);
+  if (!r.ok || !r.data || !Array.isArray(r.data.runs) || !r.data.runs.length) return null;
+  return r.data.runs[0].run_id;   // rows are newest first
+}
+
+async function loadResult(chip, project) {
+  const { el } = R.ctx.dom;
+  const rid = await latestRunId(project);
+  if (!R || R.dead || !chip.isConnected) return;
+  if (!rid) { chip.append(el("div.t-plan-note", { text: "no golden runs found for this project yet" })); return; }
+  const r = await R.ctx.api.get(`/api/golden/run/${encodeURIComponent(project)}/${rid}`);
+  if (!R || R.dead || !chip.isConnected) return;
+  if (!r.ok) {
+    chip.append(el("div.t-plan-note", { text: `run detail unavailable: ${r.error || "HTTP " + r.status}` }));
+    return;
+  }
+  const d = r.data;
+  const res = d.result || {};
+  const card = el("div.t-card.t-result");
+  const grade = d.grade || res.grade || null;
+  const verdictLine = res.verdict_line || d.verdict || null;
+  card.append(el("div.t-result-head", [
+    el("span.t-grade." + (grade === "rig-verified" ? "best" : grade === "verified-desktop" ? "good" : "plain"), { text: grade || (d.status || "status not reported") }),
+    el("span.t-outcome." + ((d.outcome || res.outcome) === "pass" ? "pass" : "other"), { text: d.outcome || res.outcome || d.status || "unknown" }),
+  ]));
+  if (verdictLine) card.append(el("div.t-verdict", { text: verdictLine }));
+  if (d.result_absent_reason) card.append(el("div.t-plan-note", { text: d.result_absent_reason }));
+  // scorecard: the winner's metrics as the sheet rows
+  const w = res.winner || {};
+  const metrics = w.metrics && typeof w.metrics === "object" ? w.metrics : null;
+  if (metrics) {
+    const rows = Object.entries(metrics).filter(([k, v]) => typeof v === "number");
+    if (rows.length) {
+      const tbl = el("table.t-score");
+      for (const [k, v] of rows) tbl.append(el("tr", [el("td", { text: METRIC_LABELS[k] || k }), el("td.mono", { text: fmtNum(v) })]));
+      card.append(tbl);
+    }
+  }
+  // downloads + renders: the file route serves the run's own files
+  const base = `/api/golden/file/${encodeURIComponent(project)}/${rid}/`;
+  const dl = el("div.t-downloads");
+  const stl = w.stl || (d.run && d.run.paths && d.run.paths.stl) || null;
+  if (stl) dl.append(fileLink(base + stl, "STL — the solved part"));
+  if (res.report && res.report.html) dl.append(fileLink(base + res.report.html, "report (HTML)"));
+  if (res.report && res.report.md) dl.append(fileLink(base + res.report.md, "report (markdown)"));
+  if (w.json) dl.append(fileLink(base + w.json, "winner.json"));
+  if (dl.children.length) card.append(dl);
+  // iso render if the run wrote one
+  const figs = Array.isArray(d.figures) ? d.figures : [];
+  const label = w.label || "winner";
+  const iso = figs.find((f) => f.includes("iso")) || null;
+  const winnerDir = stl ? stl.split("/")[0] : label;
+  const isoRel = iso ? `figures/${iso}` : `${winnerDir}/${label}_iso.png`;
+  const img = el("img.t-render", { src: base + isoRel, alt: "the part, isometric render", loading: "lazy" });
+  img.addEventListener("error", () => { img.remove(); });
+  card.append(img);
+  chip.append(card);
+  renderCompare();
+}
+
+function fileLink(href, text) {
+  return R.ctx.dom.el("a.t-dl", { href, text: "⭳ " + text, target: "_blank", rel: "noopener" });
+}
+
+function fmtNum(v) {
+  if (typeof v !== "number") return String(v);
+  if (Math.abs(v) >= 1000) return v.toPrecision(5);
+  if (Math.abs(v) >= 1) return v.toPrecision(4);
+  return v.toExponential(2);
+}
+
+// ---------- compare: siblings in one thread, side by side ----------
+async function renderCompare() {
+  const { el } = R.ctx.dom;
+  const th = R.thread;
+  if (!th || !Array.isArray(th.runs) || th.runs.length < 2) return;
+  const old = R.b.log.querySelector(".t-compare");
+  const results = [];
+  for (const run of th.runs) {
+    const rid = await latestRunId(run.project);
+    if (!rid) continue;
+    const r = await R.ctx.api.get(`/api/golden/run/${encodeURIComponent(run.project)}/${rid}`);
+    if (r.ok && r.data && r.data.result && r.data.result.winner && r.data.result.winner.metrics) {
+      results.push({ project: run.project, item: run.item, metrics: r.data.result.winner.metrics, outcome: r.data.outcome || r.data.result.outcome });
+    }
+  }
+  if (results.length < 2) { if (old) old.remove(); return; }
+  const keys = [...new Set(results.flatMap((x) => Object.keys(x.metrics)))];
+  const tbl = el("table.t-compare-tbl");
+  tbl.append(el("tr", [el("th", { text: "metric" }), ...results.map((x) => el("th", { text: `${x.item} (${x.project})` }))]));
+  for (const k of keys) {
+    tbl.append(el("tr", [el("td", { text: METRIC_LABELS[k] || k }), ...results.map((x) => el("td.mono", { text: typeof x.metrics[k] === "number" ? fmtNum(x.metrics[k]) : "—" }))]));
+  }
+  const card = el("div.t-card.t-compare", [
+    el("div.t-card-title", { text: `Compare — ${results.length} candidates in this thread` }), tbl]);
+  if (old) old.replaceWith(card); else R.b.log.append(el("div.t-msg.agent", [el("div.t-who", { text: "aces loop" }), card]));
 }
 
 // re-check running jobs on jobs stamps and every few seconds
