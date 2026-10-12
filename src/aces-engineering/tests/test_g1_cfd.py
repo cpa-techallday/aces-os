@@ -243,6 +243,19 @@ class RigDispatch(unittest.TestCase):
             self.assertEqual(rec["state"], "failed")
             self.assertIn("diverged", rec["reason"])
 
+    def test_failed_case_without_status_json_quotes_the_job_error(self):
+        # the P6 acceptance finding: a mesh-stage failure left no status.json to pull and the reason was the
+        # uninformative "case state failed with no results.json"; sim_status's job error is quoted instead
+        with tempfile.TemporaryDirectory() as td:
+            cfd_dir, doc = _written_case(td)
+            rig = FakeRig(statuses=[{"counts": {"finished": 0, "failed": 1},
+                                     "jobs": [{"state": "failed", "error": "gmsh rc=1: No elements found in volume"}]}],
+                          files={})
+            rec = cfd.dispatch(rig, cfd_dir=cfd_dir, doc=doc, exp_id="run1-cfd", principal=None,
+                               budget_s=60.0, poll_s=0.0)
+            self.assertEqual(rec["state"], "failed")
+            self.assertIn("No elements found in volume", rec["reason"])
+
     def test_budget_spent_is_pending_and_never_cancelled(self):
         with tempfile.TemporaryDirectory() as td:
             cfd_dir, doc = _written_case(td)

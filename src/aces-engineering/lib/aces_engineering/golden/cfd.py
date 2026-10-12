@@ -340,6 +340,7 @@ def dispatch(client: Any, *, cfd_dir: Path, doc: dict, exp_id: str, principal: s
 
     t_end = time.monotonic() + float(budget_s)
     case_state = None
+    job_error = ""
     while time.monotonic() < t_end:
         try:
             st = client.call("sim_status", {"experiment_id": exp_id}) or {}
@@ -350,6 +351,7 @@ def dispatch(client: Any, *, cfd_dir: Path, doc: dict, exp_id: str, principal: s
         jobs = st.get("jobs") or []
         if jobs:
             case_state = str(jobs[0].get("state") or case_state)
+            job_error = str(jobs[0].get("error") or job_error)
         done = int(counts.get("finished") or 0) + int(counts.get("failed") or 0)
         if done >= 1 or case_state in ("finished", "failed"):
             break
@@ -381,5 +383,5 @@ def dispatch(client: Any, *, cfd_dir: Path, doc: dict, exp_id: str, principal: s
         with open(rig_dir / "c000" / "results.json", "r", encoding="utf-8") as f:
             rec["results"] = json.load(f)
         return finish("delivered", None)
-    err = status.get("error") or f"case state {case_state or 'unknown'} with no results.json"
+    err = status.get("error") or job_error.strip() or f"case state {case_state or 'unknown'} with no results.json"
     return finish("failed", str(err).splitlines()[-1][:400] if err else err)
