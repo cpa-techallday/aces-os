@@ -1,6 +1,6 @@
 /* aces-console: the shell's own rules on top of the untouched Parameter Sky token sheet (styles.css).
    Nothing here introduces a colour: every ink is a token of styles.css:13-53. Chalk exists, cyan is live,
-   amber acts, red-orange marks the faulted thing only; there is no green. One 2 px radius; no shadows. */
+   amber acts, red-orange marks the faulted thing only; there is no green. One 8 px radius; no shadows. */
 
 /* ---------- layout tokens of this shell: a 56 px icon rail and a 360 px inspector (spec 4.6) ---------- */
 :root { --index-w: 56px; --column-w: 360px; }
@@ -64,7 +64,7 @@
 .card.eye { border-color: var(--act); }
 .card.fault { border-color: var(--fault); }
 .card .nm { font-family: var(--f-mono); font-size: var(--t-data); font-weight: 500; color: var(--chalk); display: flex; justify-content: space-between; gap: var(--s2); }
-.card .nm.name { font-family: var(--f-name); font-style: italic; font-weight: 400; font-size: var(--t-entry); }
+.card .nm.name { font-family: var(--f-name); font-weight: 600; letter-spacing: 0.01em; font-size: var(--t-entry); }
 .card .val { font-family: var(--f-mono); font-size: var(--t-label); color: var(--chalk-3); display: flex; justify-content: space-between; gap: var(--s2); }
 .card .val b { font-weight: 500; color: var(--chalk-2); text-align: right; overflow-wrap: anywhere; }
 .card .val b.live { color: var(--live); }
@@ -95,7 +95,7 @@
 /* ---------- the confirm panel: a modal dialog, hairline, no shadow ---------- */
 dialog.confirm { background: var(--plate-2); color: var(--chalk); border: 1px solid var(--act); border-radius: var(--r); padding: var(--s5); max-width: min(92vw, 560px); width: 100%; font: 400 var(--t-body) / 1.5 var(--f-body); }
 dialog.confirm::backdrop { background: rgba(6, 18, 37, 0.78); }
-dialog.confirm h3 { font-family: var(--f-name); font-style: italic; font-weight: 400; font-size: var(--t-sub); margin-bottom: var(--s3); }
+dialog.confirm h3 { font-family: var(--f-name); font-weight: 600; letter-spacing: 0.01em; font-size: var(--t-sub); margin-bottom: var(--s3); }
 dialog.confirm .kv b { text-align: left; }
 dialog.confirm .consequences { display: grid; gap: var(--s2); margin: var(--s3) 0; }
 dialog.confirm .warn { color: var(--act); font-family: var(--f-mono); font-size: var(--t-label); letter-spacing: 0.04em; }
