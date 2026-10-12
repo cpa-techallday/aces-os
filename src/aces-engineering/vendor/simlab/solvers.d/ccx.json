@@ -1,0 +1,43 @@
+{
+ "_comment": "CalculiX family extensions: ccx-modal (natural frequencies) and ccx-thermal (steady-state conduction). Self-contained adapters in simlab/solvers/ that reuse the aces golden conforming mesher (gmsh 4.15.2 C3D10) and ccx 2.23 inside the aces-golden:0.1 image. A drop-in so simlab/solvers.json is never rewritten. Validated on the rig 2026-10-12 through the queue in --docker mode; the numbers below are the queue's own results.json, copied to docs/validation/ccx-20261012/.",
+ "ccx-modal": {
+  "module": "simlab.solvers.ccx_modal", "physics": ["structures"], "precision": ["float64"], "image": "aces-golden:0.1",
+  "description": "Natural frequencies of a watertight part.stl: gmsh 4.15.2 C3D10 (tet10, second-order linear, single-thread mesher) via the aces golden conforming mesher, ccx 2.23 *FREQUENCY (SPOOLES) on the rig CPU; mm-N-s-tonne consistent units, eigenfrequencies parsed from ccx.dat. Refuses to run without material.rho_kg_mm3 (no mass matrix, no meaningful modes).",
+  "validation": {
+   "status": "pass", "date": "2026-10-12",
+   "image_id": "aces-golden:0.1", "device": "rig cpu x8 (ccx 2.23 at /usr/local/bin/ccx, sha256 31be21fc2f0902bd9a05acc2651dbac6dc2a2573dabbf235e39a38cb6f458862; gmsh 4.15.2)", "dtype": "float64",
+   "cases": [
+    {"id": "CM-1", "experiment": "ccx-modal-cantilever-v1", "pass": true,
+     "case": "100 x 10 x 10 mm steel cantilever (cases/ccx_validation/beam_100x10x10.stl), root face x=0 clamped (153 surface nodes), 2 mm C3D10 (6989 elements, 12129 nodes, remesh route, volume exactly 10000 mm3, min SICN 0.191), *FREQUENCY 6 modes, SPOOLES",
+     "numbers": [
+      {"quantity": "f1_hz (first bending)", "measured": 812.834, "expected": 815.3807054676879, "rel_diff": -0.0031233330033572622, "tol": 0.05, "pass": true},
+      {"quantity": "f3_hz (second bending)", "measured": 4874.668, "expected": 5109.90365644342, "rel_diff": -0.04603524298286836, "tol": 0.05, "pass": true},
+      {"quantity": "mesh_mass_kg", "measured": 0.0785, "expected": 0.0785, "rel_diff": 0.0, "tol": 0.001, "pass": true}
+     ],
+     "note": "reference is Euler-Bernoulli (beta_n^2/2 pi) sqrt(EI/(rho A L^4)); modes 1/2 are the two equal bending planes of the square section (812.834 / 812.841 Hz). EB neglects shear deformation, so the 3-D solid solve sits below it, more so for the shorter wavelength of mode 3 (-4.6 %). eigenfrequencies_hz: [812.834, 812.8409, 4874.668, 4874.711, 7204.903, 12655.46]."}
+   ],
+   "note": "Ran through the rig queue in --docker mode (experiment ccx-modal-cantilever-v1, case c000, job ccx-modal-cantilever-v1--c000--run--761496); ccx rc 0, no *ERROR/*WARNING.",
+   "record": "docs/validation/ccx-20261012/ccx-modal-cantilever-v1-results.json (and -evidence.json)"
+  }
+ },
+ "ccx-thermal": {
+  "module": "simlab.solvers.ccx_thermal", "physics": ["thermal"], "precision": ["float64"], "image": "aces-golden:0.1",
+  "description": "Steady-state heat conduction in a watertight part.stl: gmsh 4.15.2 C3D10 via the aces golden conforming mesher, ccx 2.23 *HEAT TRANSFER STEADY STATE on the rig CPU; named surface boundaries carry fixed temperatures (*BOUNDARY dof 11) or heat flux into the body (*DFLUX); nodal temperatures parsed from ccx.dat. Refuses to run without material.conductivity, and without at least one temperature boundary (pure-flux steady state is singular).",
+  "validation": {
+   "status": "pass", "date": "2026-10-12",
+   "image_id": "aces-golden:0.1", "device": "rig cpu x8 (ccx 2.23 at /usr/local/bin/ccx, sha256 31be21fc2f0902bd9a05acc2651dbac6dc2a2573dabbf235e39a38cb6f458862; gmsh 4.15.2)", "dtype": "float64",
+   "cases": [
+    {"id": "CT-1", "experiment": "ccx-thermal-slab-v1", "pass": true,
+     "case": "50 x 10 x 10 mm slab (cases/ccx_validation/slab_50x10x10.stl), k = 0.05 W/(mm K) = 50 W/(m K), 20 degC fixed at x=0, 0.1 W/mm2 *DFLUX into the body at x=50 (66 faces, 100 mm2), sides insulated; 2 mm C3D10 (3571 elements, 6262 nodes, volume exactly 5000 mm3)",
+     "numbers": [
+      {"quantity": "delta_t_K", "measured": 100.0, "expected": 100.0, "rel_diff": 0.0, "tol": 0.02, "pass": true},
+      {"quantity": "t_hot_mean_degC", "measured": 120.0, "expected": 120.0, "rel_diff": 0.0, "tol": 0.02, "pass": true},
+      {"quantity": "t_cold_mean_degC", "measured": 20.0, "expected": 20.0, "rel_diff": 0.0, "tol": 0.02, "pass": true}
+     ],
+     "note": "closed form delta T = q L / k = 0.1 * 50 / 0.05 = 100 K; a linear temperature field is exact on tetrahedra, so the 0.0 rel_err is the expected outcome, and it confirms the DFLUX face mapping (ccx S-labels) and conductivity units end to end. ccx printed the benign warning '*WARNING reading *HEAT TRANSFER: a nonlinear geometric analysis is requested' (default NLGEOM); recorded here rather than hidden."}
+   ],
+   "note": "Ran through the rig queue in --docker mode (experiment ccx-thermal-slab-v1, case c000, job ccx-thermal-slab-v1--c000--run--ae83ec); ccx rc 0.",
+   "record": "docs/validation/ccx-20261012/ccx-thermal-slab-v1-results.json (and -evidence.json)"
+  }
+ }
+}

@@ -757,8 +757,87 @@
         }
       ],
       "note": "Exact references: Shah & London (1978). Second-order convergence; permeability is viscosity-independent (TRT 3/16); an advected shear wave checks the inertial terms (ACES tests). Gyroid t/a 0.10 Re 20: friction ratio 3.4292 (n=48) / 3.4293 (n=64). The rig GPU validation run is pending: on 2026-10-07 the rig was in mode general-flagship with no simulation GPUs. Re-run cases/aces/aces-cfd-validation.yaml through the queue in a sim-lab mode and replace this record.",
-      "record": "ACES repo (github.com/steeldragon666/aces @ 4c26956): docs/SIMLAB_CFD.md, python -m aces.cfd.selftest",
+      "record": "ACES repo (github.com/cpa-techallday/aces @ 4c26956): docs/SIMLAB_CFD.md, python -m aces.cfd.selftest",
       "rig_image_id": "sha256:c95bff6e9d76b5b75ef841b68d766beb0b3b1309b133cd1ca37cb23313bc8000"
+    }
+  },
+  "aces-tile-em": {
+    "module": "aces.domains.radar.em_adapter",
+    "physics": [
+      "em"
+    ],
+    "precision": [
+      "float64"
+    ],
+    "image": "aces-em:0.1",
+    "description": "ACES radar EM verification tier: gprMax 4.0.1 FDTD (CPU/OpenMP) and Palace v0.14.0 FEM (gmsh meshes) for the AERIS tile stackups — patch resonance/far-field, THRU loss coupons, N-port through-lines, WR-90, KiCad-layout import (kicad_net), and stitched via-transition coupons (via_coupon); writes measurement.json rows for `aces calibrate`",
+    "validation": {
+      "status": "pass",
+      "date": "2026-10-09",
+      "device": "aces-em:0.1 container (gprMax 4.0.1 CPU/OpenMP, Palace v0.14.0, gmsh) on Windows workstation Docker, OMP_NUM_THREADS=16",
+      "dtype": "float64",
+      "cases": [
+        {
+          "case": "patch_xband (gprMax)",
+          "result": "PASS",
+          "note": "mesh-converged resonance 10.0-10.1 GHz, two estimators within 0.3-1%"
+        },
+        {
+          "case": "tile_coupon lambda_g/2 resonator (gprMax, job21 3-cell mesh)",
+          "result": "PASS",
+          "measured_db_per_m": 4.93,
+          "model_db_per_m": 5.12,
+          "ratio": 0.963
+        },
+        {
+          "case": "tile_multiport 2-port through (gprMax)",
+          "result": "PASS",
+          "s11_db": "-21..-22.4",
+          "reciprocity_db": 1.5e-07,
+          "split_residual_pct": 0.7
+        },
+        {
+          "case": "wr90_through (gprMax + Palace FEM cross-check, job18/19)",
+          "result": "PASS",
+          "s21_fem_vs_fdtd_db": 0.005,
+          "port_kn_err_pct": 0.021,
+          "cutoff_err_pct": 0.012
+        },
+        {
+          "case": "patch far-field matched feed (gprMax NTFF, job22)",
+          "result": "PASS",
+          "realized_gain_dbi": 5.33,
+          "at_ghz": 9.88,
+          "directivity_dbi": 6.83,
+          "rad_eff": 0.792
+        },
+        {
+          "case": "kicad_net RXO_1 real-layout import (gprMax, job23)",
+          "result": "PASS",
+          "z0_meas_ohm": 76.5,
+          "z0_model_ohm": 80.5,
+          "err_pct": 5.0,
+          "note": "design finding: RXO_1 is a 76 ohm line vs the 50 ohm fab note"
+        },
+        {
+          "case": "kicad_net RXO_1 50-ohm redesign w=0.51mm (gprMax, job24)",
+          "result": "PASS",
+          "z0_meas_ohm": 52.7,
+          "note": "+5.5% vs 50 ohm target, inside the +/-7% fab band"
+        },
+        {
+          "case": "via_coupon stitched F.Cu->In2->F.Cu transition (gprMax, job25)",
+          "result": "PASS",
+          "delay_err_pct": 0.3,
+          "s21_vs_cascade_db": 0.3,
+          "s11_vs_cascade": 0.137,
+          "reciprocity_db": 1.8e-05,
+          "note": "Cohn stripline Z0 (35.9 ohm) cross-checked by 2-D Laplace solve (35.6 ohm); IPC-2141 under-predicts in the wide-strip regime"
+        }
+      ],
+      "note": "Palace FEM path is implemented and validated for wr90_through only; other structures raise honestly (unimplemented). gprMax is CPU-only (no -gpu build) — large domains queue behind wall-time budgets. Palace 'Linear' PROM sweep fails its wave-port eigensolver on WR-90 — use 'Point' lists; port eigensolver does not converge below ~9.5 GHz on v0.14.0-dirty, band is 9.5-12.4 GHz.",
+      "record": "ACES repo (github.com/cpa-techallday/aces @ ce3a54a, branch em-gprmax-tier): docs/RADAR_EM.md Rev H, pipeline-runs/job17..job25",
+      "rig_image_id": "aces-em:0.1"
     }
   }
 }
