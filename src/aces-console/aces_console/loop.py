@@ -122,10 +122,12 @@ def parse_request(text: str) -> dict[str, Any]:
     return out
 
 
-WIRED = {"structures": "golden (SIMP sweep → surrogate optimise → verified FEA)",
-         "cfd": "PyFR on the rig (case templating: Tier 1)",
-         "thermal": "CalculiX steady-state thermal (Tier 1)",
-         "em": "Palace / gprMax EM pipeline (Tier 1)"}
+WIRED = {"structures": "golden (SIMP sweep → surrogate optimise → verified FEA; ccx conforming check validated 2026-10-10)",
+         "cfd": "PyFR 3.1 on the rig — solver validated, loop stage not wired yet (Tier 1)",
+         "thermal": "CalculiX steady-state thermal — adapter not written yet (Tier 1)",
+         "em": "Palace / gprMax EM pipeline — drop-in not wired yet (Tier 1)"}
+# what the loop can actually run today: structures only. Everything else is named and tracked, never promised.
+LOOP_WIRED = {"structures"}
 
 
 def build_plan(req: dict[str, Any]) -> dict[str, Any]:
@@ -134,7 +136,6 @@ def build_plan(req: dict[str, Any]) -> dict[str, Any]:
     c = req["constraints"]
     physics = sorted(req["physics"])
     unwired = [p for p in physics if p in UNWIRED_PHYSICS]
-    wired = [p for p in physics if p not in UNWIRED_PHYSICS]
     kind = req["kind"] or "part"
 
     if req["vehicle"]:
@@ -145,8 +146,11 @@ def build_plan(req: dict[str, Any]) -> dict[str, Any]:
                       "wired": True})
         if "battery_kWh" in c:
             items.append({"key": "battery-box", "title": f"battery enclosure — {c['battery_kWh']:g} kWh pack",
-                          "physics": ["structures", "thermal"], "answers": "enclosure mass, thermal margin",
+                          "physics": ["structures"], "answers": "enclosure mass and strength",
                           "wired": True})
+            items.append({"key": "battery-thermal", "title": f"battery pack thermal — {c['battery_kWh']:g} kWh",
+                          "physics": ["thermal"], "answers": "thermal margin",
+                          "wired": False, "reason": WIRED["thermal"]})
         items.append({"key": "vehicle-integration", "title": "whole-vehicle dynamics",
                       "physics": ["multibody"], "answers": "ride, articulation, rollover",
                       "wired": False, "reason": "multibody dynamics is not wired yet (Tier 3) — tracked"})
@@ -160,9 +164,17 @@ def build_plan(req: dict[str, Any]) -> dict[str, Any]:
             bits.append(f"survives {c['shock_g']:g} g shock")
         summary = "; ".join(bits) or "as described"
         items.append({"key": kind, "title": f"{kind} — {summary}",
-                      "physics": wired or ["structures"],
+                      "physics": ["structures"],
                       "answers": "mass, stiffness, stress margin" + (", lightest candidate" if req["objective_light"] else ""),
                       "wired": True})
+        # non-structural physics the request named: tracked items, honestly marked
+        for p in physics:
+            if p in LOOP_WIRED or p in UNWIRED_PHYSICS:
+                continue
+            answers = {"thermal": "temperature rise and thermal margin", "cfd": "drag / pressure drop / max velocity",
+                       "em": "gain, S11, RF performance"}.get(p, p)
+            items.append({"key": f"{kind}-{p}", "title": f"{kind} — {p}", "physics": [p], "answers": answers,
+                          "wired": False, "reason": WIRED.get(p, f"{p} is not wired yet")})
     for p in unwired:
         items.append({"key": p, "title": f"{p} analysis", "physics": [p], "answers": p,
                       "wired": False, "reason": f"{p} is not wired yet (Tier 3) — tracked"})
