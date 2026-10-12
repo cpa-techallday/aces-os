@@ -123,7 +123,7 @@ def parse_request(text: str) -> dict[str, Any]:
 
 
 WIRED = {"structures": "golden (SIMP sweep → surrogate optimise → verified FEA; ccx conforming check validated 2026-10-10)",
-         "cfd": "PyFR 3.1 on the rig — solver validated, loop stage not wired yet (Tier 1)",
+         "cfd": "PyFR 3.1 on the rig — golden stage cfd (flow: block → templated case → rig dispatch) wired 2026-10-12; loop drafts don't carry flow blocks yet (Tier 1)",
          "thermal": "CalculiX steady-state thermal — adapter not written yet (Tier 1)",
          "em": "Palace / gprMax EM (aces-tile-em) — registered on the rig, wr90_through rig smoke PASS 2026-10-12; loop dispatch not wired yet (Tier 1)"}
 # what the loop can actually run today: structures only. Everything else is named and tracked, never promised.
