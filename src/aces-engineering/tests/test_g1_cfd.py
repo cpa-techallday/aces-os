@@ -139,6 +139,20 @@ class DerivedCase(unittest.TestCase):
         self.assertAlmostEqual(d["lc_body_mm"], 80.0 / 8.0)
         self.assertIn("D/8", d["lc_body_basis"])
 
+    def test_ac_zeta_scales_with_velocity_squared(self):
+        # ac-zeta has units of velocity^2: the sphere smoke's 2.5 / 180 are only valid at Uin = 1.
+        # Rig finding (...-cfd-r2): unscaled zeta at Uin = 30000 mm/s NaN-diverged at t = 0.00042 s.
+        d = cfd.derived_case(self.flow, BBOX_MM)
+        u = 30.0 * 1000.0
+        self.assertAlmostEqual(d["ac_zeta"], 2.5 * u * u)
+        self.assertAlmostEqual(d["ac_zeta_bc"], 180.0 * u * u)
+        cp = configparser.ConfigParser(interpolation=None)
+        cp.optionxform = str
+        cp.read_string(cfd.template_ini(d, "winner"))
+        self.assertAlmostEqual(float(cp["constants"]["ac-zeta"]), 2.5 * u * u, places=3)
+        for bc in ("soln-bcs-inlet", "soln-bcs-outlet", "soln-bcs-farfield"):
+            self.assertAlmostEqual(float(cp[bc]["ac-zeta"]), 180.0 * u * u, places=3)
+
 
 class TemplateIni(unittest.TestCase):
     def test_ini_parses_and_carries_the_flow(self):

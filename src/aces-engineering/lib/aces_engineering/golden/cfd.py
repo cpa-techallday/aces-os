@@ -34,8 +34,8 @@ MEDIA = {
 }
 
 TEMPLATE_NOTE = ("templated PyFR ac-NS case (incompressible, order {order}, {precision} precision, dt = lc_body/(12 U) "
-                 "— the validated sphere3d smoke's ratio): an engineering estimate, not a converged drag value; "
-                 "validation quality wants the finer-mesh double-precision rerun")
+                 "and ac-zeta = 2.5 U^2 — the validated sphere3d smoke's ratios): an engineering estimate, not a "
+                 "converged drag value; validation quality wants the finer-mesh double-precision rerun")
 
 INI_TEMPLATE = """\
 [backend]
@@ -47,7 +47,7 @@ Uin = {u_mms:.6g}
 Vin = 0.0
 Win = 0.0
 Pc = 1.0
-ac-zeta = 2.5
+ac-zeta = {ac_zeta:.6g}
 
 [solver]
 system = ac-navier-stokes
@@ -103,7 +103,7 @@ type = no-slp-wall
 
 [soln-bcs-inlet]
 type = ac-char-riem-inv
-ac-zeta = 180
+ac-zeta = {ac_zeta_bc:.6g}
 p = Pc
 u = Uin
 v = Vin
@@ -111,7 +111,7 @@ w = Win
 
 [soln-bcs-outlet]
 type = ac-char-riem-inv
-ac-zeta = 180
+ac-zeta = {ac_zeta_bc:.6g}
 p = Pc
 u = Uin
 v = Vin
@@ -119,7 +119,7 @@ w = Win
 
 [soln-bcs-farfield]
 type = ac-char-riem-inv
-ac-zeta = 180
+ac-zeta = {ac_zeta_bc:.6g}
 p = Pc
 u = Uin
 v = Vin
@@ -197,6 +197,11 @@ def derived_case(flow: Any, bbox_mm: list[float], fea_mm: float | None = None) -
         "lc_far_mm": lc_far_m * 1000.0,
         "dist_max_mm": dist_max_m * 1000.0,
         "nu_mm2s": nu * 1e6, "u_mms": U * 1000.0,
+        # ac-zeta has units of velocity^2 — the sphere smoke's hard-coded 2.5 / 180 are only right at
+        # Uin = 1. At 30 m/s in mm (Uin = 30000) an unscaled zeta made the artificial Mach ~19000 and the
+        # pressure-wave speeds degenerate: NaN at t = 0.00042 s (rig run ...-cfd-r2). Scale zeta by U^2 so
+        # every templated case sits in the sphere's validated artificial-compressibility regime.
+        "ac_zeta": 2.5 * (U * 1000.0) ** 2, "ac_zeta_bc": 180.0 * (U * 1000.0) ** 2,
         "order": int(flow.order), "precision": str(flow.precision),
         "dt_s": dt_s, "pseudo_dt_s": dt_s / 20.0, "tend_s": tend_s, "writer_dt_s": writer_dt_s,
         "honesty": TEMPLATE_NOTE.format(order=flow.order, precision=flow.precision),
@@ -206,6 +211,7 @@ def derived_case(flow: Any, bbox_mm: list[float], fea_mm: float | None = None) -
 def template_ini(d: dict, stem: str) -> str:
     """The validated sphere3d smoke deck with the flow's constants substituted."""
     return INI_TEMPLATE.format(precision=d["precision"], nu_mm2s=d["nu_mm2s"], u_mms=d["u_mms"],
+                               ac_zeta=d["ac_zeta"], ac_zeta_bc=d["ac_zeta_bc"],
                                order=d["order"], tend_s=d["tend_s"], dt_s=d["dt_s"],
                                pseudo_dt_s=d["pseudo_dt_s"], writer_dt_s=d["writer_dt_s"], stem=stem)
 
