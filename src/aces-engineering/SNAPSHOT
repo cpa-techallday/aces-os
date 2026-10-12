@@ -1,8 +1,8 @@
 # Vendored snapshot of cudax-sim-runtime (written by sync.sh; do not edit by hand)
-source: /c/Users/shedm/cudax-sim-runtime @ rig-golden-1.1 (clean clone)
-synced_utc: 2026-10-10T08:27:21Z
-source_commit: 62de9811e555e2b46d23a7923fecbbb3124192ac (clean clone at rig-golden-1.1; 0 uncommitted changes)
-content_sha256: da7c28a37dabbe8ba55e1817d668c734a4cf951da15740d1e9f837d611ed8ac9
+source: /c/Users/shedm/cudax-sim-runtime @ rig-golden-2 (clean clone)
+synced_utc: 2026-10-12T00:45:09Z
+source_commit: 8a7300731d31d1772f723023e466b166e6229349 (clean clone at rig-golden-2; 0 uncommitted changes)
+content_sha256: a67b2f51625531a7ce558663aa74e7c0a0bf86db1e58acd00d5b58a2b50a82ad
 files: 59
 excluded: __pycache__, simlab/solvers.json.bak-*, simlab/console (rig-hosted UI)
 line_endings: normalised to LF on copy (source files are CRLF)
@@ -43,7 +43,7 @@ bf9ae2dc39e07005a9e7b39a3719ef16d6466a0605a3f83c8da9204216d00e55 *simlab/fusion_
 c3bfd0826428e7f4570819d036f6c5839d150aecfbae8da6211b7bd3f1c84cce *simlab/registry.py
 d27cc2c561eff992cf43cd2f5710fa21e00fcca5b73fc148224927d9e571b572 *simlab/report.py
 ba7807b1deda3fa22d6bd7cca1b8df163c750280545e5f9645868dcffa9c68e5 *simlab/run.py
-2f5fdd1575a89ac103693f6efde7d3054b7fd3cc9e0e13482fa170e4fa936fba *simlab/solvers.d/golden.json
+6d07aba92e81eb006bf3ea56269238a0c67e6a8fd8dc112b8649fed7eb6ce899 *simlab/solvers.d/golden.json
 aeb788bf34b18b5a66e3c774b66a9ed574dd5175cc649c053ce679db72d9b4c6 *simlab/solvers.json
 b6600c7d7c5061cfb7aeffa9d0ba8ae95f5f14314438b232f006d633e0f08c25 *simlab/solvers/__init__.py
 b39d88c415c00a7354f7f86806eb4b1cf7ef6237026e6e3039046287991d8a92 *simlab/solvers/ccx_check.py
