@@ -288,6 +288,40 @@ class SolverCfg(_Model):
     maxiter: int = Field(20000, ge=100)
 
 
+class Flow(_Model):
+    """Optional Tier-1 CFD block (`flow:`): template a PyFR ac-navier-stokes case on the exported part and queue it
+    on the rig. Gated honestly, because the engine and the mesh path bound what the numbers can mean:
+
+    - ac-navier-stokes is incompressible: air faster than 100 m/s (~Mach 0.3) is refused — an incompressible drag
+      number there is not a number you can engineer to. Water carries a no-cavitation note instead.
+    - the gmsh mesh stage names inlet/outlet by the box's x faces, so the flow is +x over the part as exported;
+      a part that must see another heading is rotated before export, not here.
+    - the body is the faceted STEP (mesh-derived, not B-rep): wall curvature is the verify mesh's.
+    """
+    velocity_mps: PositiveFloat
+    medium: Literal["air", "water"] = "air"
+    nu_m2s: PositiveFloat | None = None      # kinematic viscosity override; default from `medium`
+    rho_kgm3: PositiveFloat | None = None    # density override (SI force recovery only; Cd is rho-free)
+    reference_length_m: PositiveFloat | None = None   # default: part bbox extent along +x
+    reference_area_m2: PositiveFloat | None = None    # default: bbox frontal area (an approximation, labelled)
+    farfield: tuple[PositiveFloat, PositiveFloat, PositiveFloat] = (3.0, 9.0, 3.0)  # upstream, downstream, lateral, x D
+    lc_body_m: PositiveFloat | None = None   # wall cell size; default reference_length / 8
+    lc_far_m: PositiveFloat | None = None    # farfield cell size; default reference_length
+    dist_max_m: PositiveFloat | None = None  # refinement halo; default 2 x reference_length
+    order: int = Field(2, ge=1, le=5)
+    precision: Literal["single", "double"] = "single"
+    tend_s: PositiveFloat | None = None      # default 20 reference-length flow-throughs
+    dt_s: PositiveFloat | None = None        # default lc_body / (12 U), the validated sphere smoke's ratio
+
+    @model_validator(mode="after")
+    def _incompressible(self) -> "Flow":
+        if self.medium == "air" and self.velocity_mps > 100.0:
+            raise ValueError(f"flow.velocity_mps: {self.velocity_mps:g} m/s in air is Mach "
+                             f"~{self.velocity_mps / 343.0:.2f}; ac-navier-stokes is incompressible, so a drag "
+                             "number past ~100 m/s (Mach 0.3) would be fiction — this tier refuses it")
+        return self
+
+
 class GoldenSpec(_Model):
     schema_id: Literal["aces-golden-spec/1"] = Field(alias="schema")
     name: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,47}$")
@@ -307,6 +341,7 @@ class GoldenSpec(_Model):
     optimise: OptimiseCfg = Field(default_factory=OptimiseCfg)
     verify: VerifyCfg = Field(default_factory=VerifyCfg)
     solver: SolverCfg = Field(default_factory=SolverCfg)
+    flow: Flow | None = None    # optional Tier-1 CFD: a PyFR case on the exported part, queued on the rig
 
     @model_validator(mode="after")
     def _limits(self) -> "GoldenSpec":
