@@ -9,15 +9,22 @@ golden job machinery as the Evidence plate, and every mutation lands in the oper
 
 Routes:
   POST /api/loop/message        {thread?, text}                       -> thread with the reply + plan card appended
+  POST /api/loop/upload         {thread?, name, data_b64}             -> thread with the upload recorded (base64 JSON;
+                                                                         this path alone gets a larger body cap)
+  GET  /api/loop/file/{tid}/{name}                                    -> the stored upload's bytes (photos render inline)
   GET  /api/loop/thread/{id}                                          -> the thread
   GET  /api/loop/threads                                              -> recent threads (newest first, 20)
   POST /api/loop/plan/approve   {thread, keep: [item keys]}           -> spec drafts for the kept items
   POST /api/loop/spec/confirm   {thread, item, spec, confirm}         -> aces golden run job (confirm = project name)
 
-Loop state lives in <state>/loop/<thread>.json (atomic writes). Nothing here calls the rig.
+Loop state lives in <state>/loop/<thread>.json (atomic writes); uploads under <state>/loop/uploads/<thread>/.
+A STEP upload is real geometry: plan drafts point domain.source=step at it. Nothing here calls the rig.
 """
 from __future__ import annotations
 
+import base64
+import binascii
+import hashlib
 import json
 import os
 import re
@@ -35,6 +42,20 @@ ITEM_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 KEEP_THREADS = 20
 TEXT_CAP = 8000
 LOCK = threading.Lock()
+
+# uploads: the composer's attach button. JSON + base64 (the POST guard admits application/json only), so the
+# body cap for this one route is ~1.37x the file cap; every other route keeps the 64 KiB default.
+UPLOAD_FILE_CAP = 48 * 1024 * 1024
+UPLOAD_BODY_CAP = 68 * 1024 * 1024
+UPLOAD_KINDS = {".step": "model", ".stp": "model", ".stl": "model",
+                ".png": "photo", ".jpg": "photo", ".jpeg": "photo", ".webp": "photo", ".gif": "photo",
+                ".pdf": "doc", ".txt": "doc", ".md": "doc", ".csv": "doc", ".json": "doc"}
+UPLOAD_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$")
+STORED_RE = re.compile(r"^[0-9a-f]{8}-[A-Za-z0-9._-]{1,120}$")
+FILE_CTYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
+               ".gif": "image/gif", ".pdf": "application/pdf", ".stl": "model/stl",
+               ".txt": "text/plain; charset=utf-8", ".md": "text/plain; charset=utf-8",
+               ".csv": "text/csv; charset=utf-8", ".json": "application/json"}
 
 # -------------------------------------------------------------------------------------------------- the playbook
 
@@ -246,8 +267,10 @@ def build_plan(req: dict[str, Any]) -> dict[str, Any]:
             "est": "one golden run per wired item; wall time minutes (desktop) to tens of minutes (rig)"}
 
 
-def spec_draft(req: dict[str, Any], item: dict[str, Any], slug: str) -> dict[str, Any]:
-    """An aces-golden-spec/1 skeleton with what the parser found; `missing` names what is still needed."""
+def spec_draft(req: dict[str, Any], item: dict[str, Any], slug: str, uploads: list[dict] | None = None) -> dict[str, Any]:
+    """An aces-golden-spec/1 skeleton with what the parser found; `missing` names what is still needed.
+    `uploads` are the thread's upload records (each with an `abs` path): the latest STEP becomes the
+    design space (domain.source = "step") — real geometry, named with its file, not a demo stand-in."""
     c = req["constraints"]
     mat = req["material"] or MATERIALS["6061"]
     load_N = c.get("load_N") or (c.get("payload_kg", 0.0) * G * (c.get("shock_g", 1.0)) if c.get("payload_kg") else None)
@@ -283,7 +306,15 @@ def spec_draft(req: dict[str, Any], item: dict[str, Any], slug: str) -> dict[str
         missing.append("loads: no load was parsed from the message — say e.g. “holds 15 kg” or “2 kN”")
     spec["supports"] = []
     missing.append("supports: where is it held/bolted? (needs the design space)")
-    missing.append("domain: the design space — attach a STEP, pick a demo (root-mount, bone), or name an envelope in mm")
+    step_up = next((u for u in reversed(uploads or []) if u.get("name", "").lower().endswith((".step", ".stp"))
+                    and u.get("abs")), None)
+    if step_up is not None:
+        spec["domain"] = {"source": "step", "step_file": step_up["abs"]}
+        spec["_design_space"] = (f"your upload {step_up['name']} (sha256 {str(step_up.get('sha256'))[:12]}…) is the "
+                                 "design space — origin/envelope derive from its bounding box")
+    else:
+        missing.append("domain: the design space — attach a STEP (the paperclip below), pick a demo "
+                       "(root-mount, bone), or name an envelope in mm")
     if item.get("wired") and item.get("physics") == ["cfd"]:
         # a wired cfd item carries its flow block into the draft so confirm-to-run dispatches golden's cfd stage;
         # refuse at draft time — with golden's own validator message — rather than hand out a doomed draft
@@ -332,7 +363,7 @@ def save_thread(app, th: dict) -> None:
 def new_thread(app) -> dict:
     tid = "t-" + pysecrets.token_hex(4)
     th = {"id": tid, "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-          "messages": [], "plans": [], "drafts": {}, "runs": []}
+          "messages": [], "plans": [], "drafts": {}, "runs": [], "uploads": []}
     save_thread(app, th)
     return th
 
@@ -355,8 +386,8 @@ def reply_text(req: dict[str, Any], plan: dict[str, Any]) -> str:
         if not i["wired"]:
             lines.append(f"Not wired yet: {i['title']} ({i['reason']}).")
     if plan["missing_geometry"] and wired:
-        lines.append("Before anything runs I need the design space: attach a STEP file, pick a demo "
-                     "(root-mount, bone), or name an envelope like 200x150x40 mm.")
+        lines.append("Before anything runs I need the design space: attach a STEP with the paperclip below, "
+                     "pick a demo (root-mount, bone), or name an envelope like 200x150x40 mm.")
     lines.append("Approve the plan to get editable spec drafts; nothing runs until you confirm a spec.")
     return "\n".join(lines)
 
@@ -415,6 +446,100 @@ def h_threads(req: Request) -> Response:
     return ok({"threads": rows})
 
 
+# -------------------------------------------------------------------------------------------------- uploads
+
+def _fmt_size(n: int) -> str:
+    return (f"{n / 1048576:.1f} MB" if n >= 1048576 else f"{n / 1024:.1f} KB") if n >= 1024 else f"{n} B"
+
+
+def _upload_ack(rec: dict) -> str:
+    """What the upload means for the work, said plainly. Photos are context for the conversation — the loop
+    does not see into images, so it asks for the words that matter."""
+    name, kind = rec["name"], rec["kind"]
+    if rec["ext"] in (".step", ".stp"):
+        return (f"Got {name} ({_fmt_size(rec['size'])}). This is real geometry: approve a plan and the spec "
+                "drafts will use it as the design space (domain.source = step). Tell me the part's job — "
+                "loads, supports, what 'good' means.")
+    if rec["ext"] == ".stl":
+        return (f"Got {name} ({_fmt_size(rec['size'])}). An STL is a mesh, not a B-rep: the generator cannot "
+                "grow a design inside it, but it can be the body in a CFD run. If you have the STEP, upload "
+                "that too — it unlocks the design space.")
+    if kind == "photo":
+        return (f"Got {name} ({_fmt_size(rec['size'])}) — kept in the thread as context, visible below. "
+                "I can't see into images yet, so tell me in words what matters in it: dimensions, features, "
+                "what to copy or avoid.")
+    return (f"Got {name} ({_fmt_size(rec['size'])}) — kept in the thread. Reference it in your next message "
+            "and I'll carry its contents into the plan where it fits.")
+
+
+def h_upload(req: Request) -> Response:
+    app = req.app
+    body = req.json or {}
+    name, data_b64, tid = body.get("name"), body.get("data_b64"), body.get("thread")
+    try:
+        if not isinstance(name, str) or not UPLOAD_NAME_RE.match(name) or Path(name).name != name:
+            raise ValueError("name must be a plain file name (letters, digits, . _ - and spaces, no paths)")
+        ext = Path(name).suffix.lower()
+        if ext not in UPLOAD_KINDS:
+            raise ValueError(f"*{ext or '.*'} is not accepted — models (.step .stp .stl), photos "
+                             "(.png .jpg .webp .gif), documents (.pdf .txt .md .csv .json)")
+        if not isinstance(data_b64, str) or not data_b64:
+            raise ValueError("data_b64 must be the file's bytes, base64")
+        try:
+            raw = base64.b64decode(data_b64, validate=True)
+        except (binascii.Error, ValueError):
+            raise ValueError("data_b64 is not valid base64")
+        if not raw:
+            raise ValueError("the file is empty")
+        if len(raw) > UPLOAD_FILE_CAP:
+            raise ValueError(f"the file is {_fmt_size(len(raw))}; the cap is {_fmt_size(UPLOAD_FILE_CAP)}")
+        if tid is not None and (not isinstance(tid, str) or not THREAD_RE.match(tid)):
+            raise ValueError("thread must be a thread id like t-1a2b3c4d")
+    except ValueError as e:
+        return error(400, str(e), "bad-request")
+    sha = hashlib.sha256(raw).hexdigest()
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", name)
+    stored = f"{sha[:8]}-{safe}"
+    with LOCK:
+        th = load_thread(app, tid) if tid else None
+        if tid and th is None:
+            return error(404, f"no thread {tid}", "not-found")
+        if th is None:
+            th = new_thread(app)
+        udir = _dir(app) / "uploads" / th["id"]
+        udir.mkdir(parents=True, exist_ok=True)
+        (udir / stored).write_bytes(raw)
+        rec = {"id": f"{th['id']}/{stored}", "name": name, "ext": ext, "kind": UPLOAD_KINDS[ext],
+               "size": len(raw), "sha256": sha,
+               "utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+        th.setdefault("uploads", []).append(rec)
+        th["messages"].append(_msg("user", "upload", f"uploaded {name} ({_fmt_size(len(raw))})",
+                                   card={"upload": rec}))
+        th["messages"].append(_msg("loop", "note", _upload_ack(rec)))
+        save_thread(app, th)
+    n = jobs._record(app, "console.loop.upload", {"thread": th["id"], "name": name, "size": len(raw),
+                                                  "sha256": sha[:12]})
+    return ok({"thread": th, "upload": rec, "ledger_n": n}, status=201)
+
+
+def h_file(req: Request) -> Response:
+    """Serve a stored upload back (photos render in the thread; models download). Path traversal is refused
+    by the two regexes, not by trust."""
+    tid, stored = req.params.get("tid", ""), req.params.get("name", "")
+    if not THREAD_RE.match(tid) or not STORED_RE.match(stored):
+        return error(400, "file must be a thread id and a stored upload name", "bad-request")
+    p = _dir(req.app) / "uploads" / tid / stored
+    if not p.is_file():
+        return error(404, f"no upload {tid}/{stored}", "not-found")
+    ext = p.suffix.lower()
+    ctype = FILE_CTYPES.get(ext, "application/octet-stream")
+    disp = "inline" if ext in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".pdf") else "attachment"
+    original = stored[9:]  # strip the sha8- prefix for the download name
+    return Response(status=200, body=p.read_bytes(), content_type=ctype,
+                    headers={"Content-Disposition": f'{disp}; filename="{original}"',
+                             "Cache-Control": "private, max-age=3600"})
+
+
 def h_plan_approve(req: Request) -> Response:
     app = req.app
     body = req.json or {}
@@ -440,6 +565,7 @@ def h_plan_approve(req: Request) -> Response:
                 break
         drafts = {}
         known = {i["key"]: i for i in plan["items"]}
+        ups = [dict(u, abs=str(_dir(app) / "uploads" / u["id"])) for u in th.get("uploads") or [] if u.get("id")]
         for key in keep:
             item = known.get(key)
             if item is None:
@@ -449,7 +575,7 @@ def h_plan_approve(req: Request) -> Response:
             try:
                 drafts[key] = spec_draft(parsed or {"constraints": {}, "physics": {"structures"}, "kind": key,
                                                     "material": None, "objective_light": False},
-                                         item, slug=f"{tid[2:]}-{key}")
+                                         item, slug=f"{tid[2:]}-{key}", uploads=ups)
             except ValueError as e:
                 return error(409, f"item {key!r} cannot produce a runnable draft: {e}", "draft-refused")
         th["drafts"].update(drafts)
@@ -511,6 +637,9 @@ def h_spec_confirm(req: Request) -> Response:
 
 def install(register) -> None:
     register("POST", "/api/loop/message", h_message)
+    register("POST", "/api/loop/upload", h_upload)
+    server.allow_body("/api/loop/upload", UPLOAD_BODY_CAP)
+    register("GET", "/api/loop/file/{tid}/{name}", h_file)
     register("GET", "/api/loop/threads", h_threads)
     register("GET", "/api/loop/thread/{id}", h_thread)
     register("POST", "/api/loop/plan/approve", h_plan_approve)

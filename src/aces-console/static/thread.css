@@ -122,6 +122,18 @@
   gap: 10px;
 }
 .t-composer-row .t-files { display: flex; gap: 6px; flex-wrap: wrap; }
+.t-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #c9dcf0;
+  background: #0d2036; border: 1px solid #1d4a6a; border-radius: 999px;
+  padding: 3px 6px 3px 10px;
+}
+.t-chip-x {
+  background: none; border: none; color: #8aa0b8; cursor: pointer;
+  font-size: 11px; padding: 0 4px; border-radius: 50%;
+}
+.t-chip-x:hover { color: #f08a8a; }
+.t-card.t-upload { gap: 6px; padding: 8px; }
 .t-composer-row .t-state { font-size: 12px; color: #e8c472; flex: 1; }
 .t-composer-row .t-state:empty { display: none; }
 .t-send { margin-left: auto; }

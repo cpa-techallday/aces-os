@@ -29,11 +29,28 @@ export async function mount(root, ctx) {
   const send = ctx.dom.button("Send", { cls: "btn primary t-send", onclick: () => sendMessage(ta) });
   ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) send.click(); });
   const newBtn = ctx.dom.button("New conversation", { cls: "btn", onclick: newThread, title: "start a fresh thread (this one stays listed)" });
+  // attach: models (.step/.stp/.stl), photos, documents — uploaded first, then the message rides after
+  const fileIn = el("input", { type: "file", multiple: "multiple", style: "display:none",
+                               accept: ".step,.stp,.stl,.png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.md,.csv,.json",
+                               "aria-label": "attach files" });
+  R.pendingFiles = [];
+  const chips = el("span.t-files");
+  fileIn.addEventListener("change", () => {
+    for (const f of fileIn.files || []) R.pendingFiles.push(f);
+    fileIn.value = "";
+    renderFileChips(chips);
+  });
+  const attach = ctx.dom.button("📎 Attach", {
+    cls: "btn", title: "attach a STEP/STL model, a photo, or a document — it joins the thread before your message",
+    onclick: () => fileIn.click(),
+  });
   R.b.composer = el("div.t-composer", [
     ta,
-    el("div.t-composer-row", [newBtn, el("span.t-state", { text: R.state }), send]),
+    el("div.t-composer-row", [newBtn, attach, chips, el("span.t-state", { text: R.state }), send]),
+    fileIn,
   ]);
   R.b.ta = ta;
+  R.b.chips = chips;
 
   root.append(el("div.t-wrap", [
     el("div.t-head", [el("div.t-title", { text: "What are we building?" }), R.b.truth]),
@@ -107,7 +124,7 @@ function renderLog() {
   if (!th || !th.messages || !th.messages.length) {
     box.append(el("div.t-empty", [
       el("div.t-empty-title", { text: "Start with one sentence." }),
-      el("div.t-empty-body", { text: "Say what the thing is and what it must do — load it carries, heat it sheds, speed it sees, space it fits. A plan appears here before anything runs; nothing burns compute until you approve it." }),
+      el("div.t-empty-body", { text: "Say what the thing is and what it must do — load it carries, heat it sheds, speed it sees, space it fits. Attach a STEP, a photo, or a drawing with 📎 for context. A plan appears here before anything runs; nothing burns compute until you approve it." }),
     ]));
     return;
   }
@@ -122,12 +139,36 @@ function renderMessage(m, live = { plan: false, drafts: false }) {
   const mine = m.role === "user";
   const body = el("div.t-body", { text: m.text });
   const kids = [el("div.t-who", { text: mine ? "you" : "aces loop" }), body];
+  if (m.card && m.card.upload) kids.push(uploadCard(m.card.upload));
   if (!mine && m.card) {
     if (m.card.plan) kids.push(planCard(m.card.plan, live.plan));
     if (m.card.drafts) kids.push(draftsCard(m.card.drafts, live.drafts));
     if (m.card.run) kids.push(runChip(m.card.run));
   }
   return el("div.t-msg" + (mine ? ".user" : ".agent"), kids);
+}
+
+// an upload: photos render inline; models and documents are chips that download from the file route
+function uploadCard(up) {
+  const { el } = R.ctx.dom;
+  const href = `/api/loop/file/${up.id}`;
+  if (up.kind === "photo") {
+    const img = el("img.t-render", { src: href, alt: up.name, loading: "lazy" });
+    img.addEventListener("error", () => { img.remove(); });
+    return el("div.t-card.t-upload", [img, el("div.t-plan-item-sub", { text: `${up.name} · ${fmtSize(up.size)}` })]);
+  }
+  const tag = up.kind === "model" ? (up.ext === ".stl" ? "mesh — CFD body, not a design space" : "model — usable as the design space") : "document";
+  return el("div.t-card.t-upload", [
+    el("a.t-dl", { href, text: `⭳ ${up.name}`, target: "_blank", rel: "noopener" }),
+    el("div.t-plan-item-sub", { text: `${tag} · ${fmtSize(up.size)}` }),
+  ]);
+}
+
+function fmtSize(n) {
+  if (typeof n !== "number") return "";
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + " MB";
+  if (n >= 1024) return (n / 1024).toFixed(1) + " KB";
+  return n + " B";
 }
 
 // a plan card: items with strike toggles, then approve
@@ -146,7 +187,7 @@ function planCard(plan, interactive) {
     row.append(it.wired && interactive ? strike : el("span.t-strike.dim", { text: it.wired ? "·" : "—", title: it.wired ? "from an earlier plan" : "not wired; runs nothing" }), body);
     list.append(row);
   }
-  const note = plan.missing_geometry ? el("div.t-plan-note", { text: "Before anything runs: the design space — attach a STEP via the Projects or Evidence panel, pick a demo (root-mount, bone), or name an envelope like 200x150x40 mm in your next message." }) : null;
+  const note = plan.missing_geometry ? el("div.t-plan-note", { text: "Before anything runs: the design space — attach a STEP with the 📎 button below, pick a demo (root-mount, bone), or name an envelope like 200x150x40 mm in your next message." }) : null;
   if (!interactive) return el("div.t-card.t-plan.superseded", [
     el("div.t-card-title", { text: `Plan — ${plan.wired_count} wired item${plan.wired_count === 1 ? "" : "s"} (superseded)` }),
     list, note].filter(Boolean));
@@ -453,19 +494,58 @@ function pollRuns() {
 }
 
 // ---------- sending ----------
+function renderFileChips(box) {
+  const { el, clear } = R.ctx.dom;
+  if (!box) return;
+  clear(box);
+  R.pendingFiles.forEach((f, i) => {
+    box.append(el("span.t-chip", [
+      el("span", { text: f.name }),
+      el("button.t-chip-x", { text: "✕", title: "drop this file", onclick: () => { R.pendingFiles.splice(i, 1); renderFileChips(box); } }),
+    ]));
+  });
+}
+
+function readB64(f) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(",", 2)[1] || "");
+    r.onerror = () => reject(new Error(`cannot read ${f.name}`));
+    r.readAsDataURL(f);
+  });
+}
+
 async function sendMessage(ta) {
   const text = ta.value;
-  if (!text || !text.trim() || R.busy) return;
+  const files = R.pendingFiles.splice(0);
+  if (R.busy || ((!text || !text.trim()) && !files.length)) return;
   R.busy = true;
   setState("");
   try {
-    const r = await R.ctx.api.post("/api/loop/message", { thread: R.threadId, text: text.trim() });
-    if (!R || R.dead) return;
-    if (!r.ok) { setState(r.error || `HTTP ${r.status}`); return; }
-    ta.value = "";
-    R.thread = r.data.thread;
-    R.threadId = r.data.thread.id;
-    storeTid(R.threadId);
+    // files go first, each its own upload (the loop answers each); the text rides after so the plan sees them
+    for (const f of files) {
+      setState(`uploading ${f.name}…`);
+      let data_b64;
+      try { data_b64 = await readB64(f); }
+      catch (e) { setState(e.message); R.pendingFiles.unshift(...files.slice(files.indexOf(f))); renderFileChips(R.b.chips); return; }
+      const ru = await R.ctx.api.post("/api/loop/upload", { thread: R.threadId, name: f.name, data_b64 });
+      if (!R || R.dead) return;
+      if (!ru.ok) { setState(ru.error || `HTTP ${ru.status}`); R.pendingFiles.unshift(...files.slice(files.indexOf(f))); renderFileChips(R.b.chips); return; }
+      R.thread = ru.data.thread;
+      R.threadId = ru.data.thread.id;
+      storeTid(R.threadId);
+    }
+    renderFileChips(R.b.chips);
+    if (text && text.trim()) {
+      setState("");
+      const r = await R.ctx.api.post("/api/loop/message", { thread: R.threadId, text: text.trim() });
+      if (!R || R.dead) return;
+      if (!r.ok) { setState(r.error || `HTTP ${r.status}`); return; }
+      ta.value = "";
+      R.thread = r.data.thread;
+      R.threadId = r.data.thread.id;
+      storeTid(R.threadId);
+    }
     const u = new URL(location.href); u.searchParams.set("thread", R.threadId); history.replaceState(null, "", u);
     renderLog();
     pollRuns(false);

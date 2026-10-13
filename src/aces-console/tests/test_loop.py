@@ -160,7 +160,7 @@ class StructuresOnlyPinnedTest(unittest.TestCase):
                        "_note": "placement box unresolved until the design space is known"}],
             "supports": [],
             "_missing": ["supports: where is it held/bolted? (needs the design space)",
-                         "domain: the design space — attach a STEP, pick a demo (root-mount, bone), or name an envelope in mm"],
+                         "domain: the design space — attach a STEP (the paperclip below), pick a demo (root-mount, bone), or name an envelope in mm"],
             "_constraints_not_in_structural_spec": {}})
 
 
@@ -271,6 +271,83 @@ class LoopHttpTest(unittest.TestCase):
         th = self._message("bracket holds 5 kg in 30 m/s airflow")
         self.assertEqual(th["runs"], [], "a plan and a draft are not a run")
         self.assertNotIn("ran", th["messages"][-1]["text"])
+
+
+class UploadHttpTest(unittest.TestCase):
+    """The upload feature end to end: attach → thread record → file route → STEP becomes the draft's domain."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.c = Console(tag="loop-upload")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.c.close()
+
+    def _upload(self, name: str, data: bytes, tid: str | None = None) -> tuple[int, dict]:
+        import base64
+        body = {"name": name, "data_b64": base64.b64encode(data).decode("ascii")}
+        if tid:
+            body["thread"] = tid
+        status, _, parsed = self.c.post("/api/loop/upload", body)
+        return status, parsed
+
+    def test_step_upload_creates_a_thread_and_is_offered_as_the_domain(self):
+        status, body = self._upload("mount concept.step", b"ISO-10303-21; fake step bytes")
+        self.assertEqual(status, 201, body)
+        th = body["data"]["thread"]
+        up = body["data"]["upload"]
+        self.assertEqual(up["kind"], "model")
+        self.assertEqual(len(up["sha256"]), 64)
+        # the user message carries the upload card; the loop's ack names the design-space use
+        self.assertEqual(th["messages"][-2]["card"]["upload"]["id"], up["id"])
+        self.assertIn("design space", th["messages"][-1]["text"])
+        # approve a wired item: the draft's domain is the upload, and the domain missing-line is gone
+        status, _, body = self.c.post("/api/loop/message", {"thread": th["id"], "text": "bracket holds 5 kg"})
+        self.assertEqual(status, 201, body)
+        status, _, body = self.c.post("/api/loop/plan/approve", {"thread": th["id"], "keep": ["bracket"]})
+        self.assertEqual(status, 200, body)
+        draft = body["data"]["drafts"]["bracket"]
+        self.assertEqual(draft["domain"]["source"], "step")
+        self.assertTrue(draft["domain"]["step_file"].endswith(up["id"].split("/", 1)[1]))
+        self.assertFalse(any(m.startswith("domain:") for m in draft["_missing"]))
+        self.assertIn("mount concept.step", draft["_design_space"])
+
+    def test_file_route_serves_the_bytes_and_refuses_traversal(self):
+        payload = b"not really a png but bytes are bytes"
+        status, body = self._upload("photo.png", payload)
+        self.assertEqual(status, 201, body)
+        up = body["data"]["upload"]
+        status, headers, raw = self.c.get(f"/api/loop/file/{up['id']}")
+        self.assertEqual(status, 200)
+        self.assertEqual(raw, payload)
+        self.assertEqual(headers.get("content-type"), "image/png")
+        status, _, body = self.c.get("/api/loop/file/t-00000000/..%2F..%2Fsecret")
+        self.assertEqual(status, 404, body)   # slashes after unquoting: the route itself does not match
+        status, _, body = self.c.get("/api/loop/file/t-00000000/..secret")
+        self.assertEqual(status, 400, body)   # matches the route shape, refused by the stored-name regex
+
+    def test_photo_ack_is_honest_about_not_seeing_images(self):
+        status, body = self._upload("site photo.jpg", b"\xff\xd8\xff jpeg-ish")
+        self.assertEqual(status, 201, body)
+        self.assertEqual(body["data"]["upload"]["kind"], "photo")
+        self.assertIn("can't see into images", body["data"]["thread"]["messages"][-1]["text"])
+
+    def test_stl_ack_names_it_a_mesh_not_a_design_space(self):
+        status, body = self._upload("part.stl", b"solid fake")
+        self.assertEqual(status, 201, body)
+        self.assertIn("mesh, not a B-rep", body["data"]["thread"]["messages"][-1]["text"])
+
+    def test_refusals(self):
+        status, body = self._upload("evil.exe", b"MZ")
+        self.assertEqual(status, 400)
+        self.assertIn("not accepted", body["error"])
+        status, _, body = self.c.post("/api/loop/upload", {"name": "ok.step", "data_b64": "!!! not base64 !!!"})
+        self.assertEqual(status, 400)
+        status, body = self._upload("../escape.step", b"x")
+        self.assertEqual(status, 400)
+        status, body = self._upload("ok.step", b"")
+        self.assertEqual(status, 400)
 
 
 if __name__ == "__main__":
