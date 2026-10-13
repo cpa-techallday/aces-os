@@ -1,0 +1,10 @@
+{
+  "name": "aces-console",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ACES engineering console — conversational design-to-simulation platform (Python backend; npm metadata exists so preview tooling can launch it with `npm run dev`).",
+  "scripts": {
+    "dev": "cmd /c dev.cmd",
+    "test": "python -m pytest tests/ -q"
+  }
+}
