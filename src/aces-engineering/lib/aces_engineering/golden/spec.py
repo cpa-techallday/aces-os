@@ -355,6 +355,71 @@ class Aeroelasticity(_Model):
         return self
 
 
+class CrashMaterial(_Model):
+    """LAW2 (Johnson-Cook without rate/temperature terms) properties for the crash tier. None of these is
+    defaulted: an explicit-dynamics run without density/stiffness/strength is not a crash model."""
+    E_Pa: PositiveFloat
+    nu: float = Field(gt=0.0, lt=0.5)
+    rho_kg_m3: PositiveFloat
+    yield_Pa: PositiveFloat
+    hardening_b_Pa: NonNegativeFloat = 0.0    # LAW2 B; 0 = perfectly plastic (the W-A reference's assumption)
+    hardening_n: float = Field(1.0, gt=0.0)   # LAW2 n
+
+
+class CrashImpactor(_Model):
+    """The free-flight rigid-wall impactor. Mass and velocity are modelling decisions, never defaulted."""
+    mass_kg: PositiveFloat
+    velocity_mps: PositiveFloat
+
+
+class Crash(_Model):
+    """Optional Tier-3 crash block (`crash:`): a parametric square thin-walled tube in axial crush, run by the
+    radioss-crash solver (OpenCourant, the community OpenRadioss fork; image simlab-radioss:0.1) on the rig —
+    explicit dynamics is not an in-process screen, so this stage templates the case and dispatches it like the
+    CFD stage does. The tube is NOT the optimised part: crushing the winner's organic mesh is a future slice
+    (deck mode with a mapped mesh), and the report says so. With `wierzbicki_abramowicz` on, the solver compares
+    the mean crush force against the Wierzbicki-Abramowicz closed form for a square column (1983) — a screen-level
+    reference that itself carries ~20% scatter against experiments."""
+    width_m: PositiveFloat                     # tube section width (square)
+    length_m: PositiveFloat
+    thickness_m: PositiveFloat                 # wall thickness; thin-walled only (see the validator)
+    material: CrashMaterial
+    impactor: CrashImpactor
+    end_s: PositiveFloat                       # how long to crush is a modelling decision
+    mesh_size_m: PositiveFloat | None = None   # shell edge length; default width/20 (the solver's own default)
+    wierzbicki_abramowicz: bool = True         # compare P_mean against the closed form (a bound, not a verdict)
+
+    @model_validator(mode="after")
+    def _thin_walled(self) -> "Crash":
+        if self.thickness_m >= self.width_m / 2:
+            raise ValueError(f"crash.thickness_m: {self.thickness_m:g} m against width {self.width_m:g} m is a "
+                             "solid bar, not a thin-walled tube — this tier models thin-walled tubes only")
+        return self
+
+
+class Multibody(_Model):
+    """Optional Tier-3 multibody block (`multibody:`): the exudyn-multibody solver (Exudyn 1.13.6, image
+    simlab-mbdyn:0.1) on the rig, dispatched like the CFD stage. mode iftomm_slider_crank is the iftomm spatial
+    rigid slider-crank benchmark — mechanism parameters are benchmark-fixed, and the trajectories are compared
+    against the three published reference solutions (Masarati/MBDyn, Masoudi, Chaojie) carried in
+    golden/data/mbdyn_iftomm. mode script runs a user Exudyn model file verbatim in the container; it must write
+    exudyn_results.json, and the case description should say that user python is the contract."""
+    mode: Literal["iftomm_slider_crank", "script"] = "iftomm_slider_crank"
+    end_s: PositiveFloat = 1.0
+    time_step_s: PositiveFloat = 1e-3
+    script: str | None = None                  # model .py for script mode, relative to the spec file
+
+    @model_validator(mode="after")
+    def _mode_requirements(self) -> "Multibody":
+        if self.mode == "script" and not self.script:
+            raise ValueError("multibody.script: script mode needs the model .py (relative to the spec file); "
+                             "it must write exudyn_results.json")
+        if self.end_s / self.time_step_s > 2e5:
+            raise ValueError(f"multibody: end_s/time_step_s = {self.end_s / self.time_step_s:g} steps; above "
+                             "2e5 this is a modelling decision to revisit, not a default")
+        return self
+
+
 class GoldenSpec(_Model):
     schema_id: Literal["aces-golden-spec/1"] = Field(alias="schema")
     name: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,47}$")
@@ -376,6 +441,8 @@ class GoldenSpec(_Model):
     solver: SolverCfg = Field(default_factory=SolverCfg)
     flow: Flow | None = None    # optional Tier-1 CFD: a PyFR case on the exported part, queued on the rig
     aeroelasticity: Aeroelasticity | None = None   # optional Tier-3 flutter screen, run in-process (seconds)
+    crash: Crash | None = None          # optional Tier-3 crash: a parametric tube crush, dispatched to the rig
+    multibody: Multibody | None = None  # optional Tier-3 multibody: iftomm benchmark or a user model, on the rig
 
     @model_validator(mode="after")
     def _limits(self) -> "GoldenSpec":

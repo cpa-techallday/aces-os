@@ -322,7 +322,7 @@ class Progress:
     The heartbeat starts with the first stage and stops on close(). `tick_s` (beacon reads) and `quiet_after_s` (the
     silence after which a heartbeat line is printed) are 0.5 s and 10 s; tests shorten them."""
 
-    def __init__(self, mode: str, err: Any, *, events_path: "Path | str | None" = None, total_stages: int = 11,
+    def __init__(self, mode: str, err: Any, *, events_path: "Path | str | None" = None, total_stages: int = 13,
                  tick_s: float = 0.5, quiet_after_s: float = 10.0):
         if mode not in MODES:
             raise ValueError(f"progress mode must be one of {', '.join(MODES)}, not {mode!r}")

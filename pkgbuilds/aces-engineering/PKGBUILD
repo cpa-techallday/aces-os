@@ -41,8 +41,8 @@ _root=opt/aces/engineering
 # The vendored snapshot this package may carry: SNAPSHOT's source commit and content hash, set by the integrator from
 # SNAPSHOT after `bash src/aces-engineering/sync.sh --commit REV <cudax-sim-runtime>` (see sync.sh). build() refuses
 # any other vendor/ tree, so a snapshot can only change through sync.sh, SNAPSHOT and these two lines together.
-_snapshot_commit=5060b8b925e2f388dc2b6666cbab1a472a1c318f
-_snapshot_content_sha256=a6ed8ec735e80c56efa598bdee54b2d014c98cc7202880ac52f7f6423a2baf39
+_snapshot_commit=bb7b8bcb5c841533a5a01ae5f68091310c0ef1d1
+_snapshot_content_sha256=a4152b3b3b34ee2bb4dea343b7a75398f7840fbd8e1b0b1c5d64932d96b507ff
 
 build() {
   cd "$srcdir/$pkgname"

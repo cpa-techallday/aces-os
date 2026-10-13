@@ -32,7 +32,8 @@ SHORT = {"mass_kg": "mass", "mass_voxel_kg": "mass_voxel", "compliance_Nmm": "co
 UNIT = {"mass_kg": "kg", "mass_voxel_kg": "kg", "compliance_Nmm": "N mm", "umax_mm": "mm", "vm_max_MPa": "MPa",
         "vm_p99_MPa": "MPa", "vm_p95_MPa": "MPa", "mesh_volume_mm3": "mm3", "voxel_volume_mm3": "mm3"}
 SWEEP_COLUMNS = ("mass_kg", "umax_mm", "vm_p99_MPa", "vm_max_MPa", "compliance_Nmm", "pcg_iters", "faces", "genus")
-WALL_STAGES = ("compute", "inputs", "domain", "sweep", "loop", "check", "export", "cfd", "flutter", "evidence")
+WALL_STAGES = ("compute", "inputs", "domain", "sweep", "loop", "check", "export", "cfd", "flutter", "crash",
+               "multibody", "evidence")
 NO_STEP = ("the part is an organic mesh (marching cubes of an implicit field); a STEP would be a faceted pretence of a "
            "B-rep")
 CAVITY_NOTE = "enclosed cavities trap powder: add drain holes before printing (not modelled in v0)"

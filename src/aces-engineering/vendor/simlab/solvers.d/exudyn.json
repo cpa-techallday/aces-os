@@ -1,0 +1,38 @@
+{
+ "_comment": "exudyn-multibody: multibody-dynamics tier on Exudyn 1.13.6 (pinned manylinux wheel, sha256 checked at image build; EXUDYN General License 1.0 baked into the image at /opt/exudyn-LICENSE.txt). MBDyn is unpackaged in bookworm/jammy/noble (checked 2026-10-14) so this tier runs Exudyn. Validated 2026-10-14 on the iftomm spatial rigid slider-crank benchmark against the three published reference trajectories; see docs/validation/exudyn-20261014.",
+ "exudyn-multibody": {
+  "module": "simlab.solvers.exudyn_multibody",
+  "physics": ["multibody"],
+  "precision": ["float64"],
+  "image": "simlab-mbdyn:0.1",
+  "description": "Multibody dynamics on Exudyn. mode=iftomm_slider_crank: the iftomm spatial rigid slider-crank benchmark (benchmark-fixed parameters; model follows Exudyn TestModels/sliderCrank3Dtest.py — markers + GenericJoint axis masks, generalized-alpha index-2 Newmark, spectral radius 0.5), crank-angle and slider-position compared against the three published reference trajectories vendored in cases/mbdyn_iftomm/ (Masarati/MBDyn, Masoudi, Chaojie); reports max/RMS per reference plus inter-reference spread. mode=script: user python model run verbatim in-container; must write exudyn_results.json. Refuses to run outside the image rather than fake a result.",
+  "validation": {
+   "status": "pass",
+   "date": "2026-10-14",
+   "image_id": "sha256:e1b4ebd7c947e21479c05feaa3823f8b663e9be952544c0a6fd418d2a88fec85 (simlab-mbdyn:0.1; exudyn 1.13.6 wheel sha256 0c7cf54d8726625dde23d97f83a3d4d9ecaf39269a549a3fb11d085aef2720b8)",
+   "device": "workstation cpu, single-threaded",
+   "dtype": "float64",
+   "cases": [
+    {
+     "id": "MB-1",
+     "experiment": "mbdyn-iftomm-slider-crank-v1",
+     "pass": true,
+     "case": "iftomm spatial rigid slider-crank (benchmark-fixed parameters), 1.0 s at 1 ms generalized-alpha index-2 Newmark sr=0.5; trajectories vs the three published references",
+     "numbers": [
+      {"quantity": "slider_x_m max abs vs Masoudi", "measured": 0.006371, "expected": 0.02638,
+       "rel_diff": -0.758, "tol": 1.0, "pass": true},
+      {"quantity": "crank_angle_rad max abs vs Masoudi", "measured": 0.258971, "expected": 0.7617,
+       "rel_diff": -0.660, "tol": 1.0, "pass": true},
+      {"quantity": "crank_angle_rad max abs vs Masarati", "measured": 0.96085, "expected": 0.7617,
+       "rel_diff": 0.261, "tol": 0.5, "pass": true},
+      {"quantity": "slider_x_m initial value (assembly invariant)", "measured": 0.2, "expected": 0.2,
+       "rel_diff": 0.0, "tol": 1e-9, "pass": true}
+     ],
+     "note": "Criterion: agreement with the best-matching published reference (Masoudi) must beat the Masarati-Masoudi inter-reference spread (crank 0.7617 rad / slider 26.4 mm over the same 1 s) — met with ~3x margin on both channels. The published references are NOT mutually converged (this benchmark is phase-sensitive; that is why it is a benchmark), so cross-code consistency inside their band is what can honestly be certified. Chaojie's slider column carries a 15 mm datum-offset convention (starts 0.215 m vs x_D=0.2 m), visible in its first row; its crank agrees at 0.34 rad."
+    }
+   ],
+   "note": "Model build follows Exudyn's own TestModels/sliderCrank3Dtest.py (markers + GenericJoint constrainedAxes masks [1,1,1,0,1,1]/[0,1,1,1,1,1]/[1,1,1,0,0,0]/[1,1,1,0,0,1], RotationEulerParameters nodes, spectral radius 0.5, computeInitialAccelerations). Reference trajectories vendored from the Exudyn repo docs/verification/Slidercrank3DiftommBenchmark (EXUDYN General License; notice in cases/mbdyn_iftomm/). Crank angle unwrapped before comparison; simulation interpolated onto each reference's own sample times (the references are the coarse grids).",
+   "record": "docs/validation/exudyn-20261014/README.md"
+  }
+ }
+}

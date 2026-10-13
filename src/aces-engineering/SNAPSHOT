@@ -1,9 +1,9 @@
 # Vendored snapshot of cudax-sim-runtime (written by sync.sh; do not edit by hand)
-source: /c/Users/shedm/cudax-sim-runtime @ 5060b8b (clean clone)
-synced_utc: 2026-10-13T06:49:50Z
-source_commit: 5060b8b925e2f388dc2b6666cbab1a472a1c318f (clean clone at 5060b8b; 0 uncommitted changes)
-content_sha256: a6ed8ec735e80c56efa598bdee54b2d014c98cc7202880ac52f7f6423a2baf39
-files: 65
+source: /c/Users/shedm/cudax-sim-runtime @ bb7b8bc (clean clone)
+synced_utc: 2026-10-13T23:26:49Z
+source_commit: bb7b8bcb5c841533a5a01ae5f68091310c0ef1d1 (clean clone at bb7b8bc; 0 uncommitted changes)
+content_sha256: a4152b3b3b34ee2bb4dea343b7a75398f7840fbd8e1b0b1c5d64932d96b507ff
+files: 69
 excluded: __pycache__, simlab/solvers.json.bak-*, simlab/console (rig-hosted UI)
 line_endings: normalised to LF on copy (source files are CRLF)
 manifest:
@@ -44,14 +44,17 @@ c3bfd0826428e7f4570819d036f6c5839d150aecfbae8da6211b7bd3f1c84cce *simlab/registr
 d27cc2c561eff992cf43cd2f5710fa21e00fcca5b73fc148224927d9e571b572 *simlab/report.py
 ba7807b1deda3fa22d6bd7cca1b8df163c750280545e5f9645868dcffa9c68e5 *simlab/run.py
 2c6024379543f3fee739b9eaaf7a3ac4cebaff5e37d810851ddb1380256495c5 *simlab/solvers.d/ccx.json
+2fa46027a429d65295a26c62115b37d47dd69a2edc6608226c6506286ac33937 *simlab/solvers.d/exudyn.json
 206053a3ee76adbe6e5e6a089c4baf150586d253b00a8c8126a5f0851a203b35 *simlab/solvers.d/flutter.json
 20b80a5d685fe4a169e40adb733e811c462b2a85e15b335b9f9ebc6b15261037 *simlab/solvers.d/golden.json
+480e61c9b1fc6c39191a0953b2a9461c3080c3a38609c9f101a79fd81a5535e3 *simlab/solvers.d/radioss.json
 3d341c3c8d8d98376299c9677e8f1f922d86ce435ea2e17f721f12cedbe24dca *simlab/solvers.json
 b6600c7d7c5061cfb7aeffa9d0ba8ae95f5f14314438b232f006d633e0f08c25 *simlab/solvers/__init__.py
 b39d88c415c00a7354f7f86806eb4b1cf7ef6237026e6e3039046287991d8a92 *simlab/solvers/ccx_check.py
 8867e2fb6d5a4bd63247fa35a21180e0cc18843ee692866b4673e7d936c26d35 *simlab/solvers/ccx_common.py
 511e5b3a5c816ccf7995d2de490d906be11937225817c8b788790e6ae5651dd5 *simlab/solvers/ccx_modal.py
 39b35248970ff9805901e44f24f2a37af642afef57f959e18d16eb692f614eae *simlab/solvers/ccx_thermal.py
+c121b7151c2dd904db2deeaaad72c59f5079e28a58ba4f25bd7817589f7337ac *simlab/solvers/exudyn_multibody.py
 78d3c05b625252c0ebac879b7b29a6f00b66a24eef7df6c50555aca468b30cb0 *simlab/solvers/flutter_screen.py
 d3085779de3776b891da25f7096154e3f363e98abb04bab50f45b1527f95d44f *simlab/solvers/gendesign_beam_check.py
 f10a431d2fe028d42f428c1bf25f2e7ad48bb8dbe07967d39fa9f9c31d0ab4b6 *simlab/solvers/gendesign_parametric.py
@@ -60,6 +63,7 @@ ec8b882f4827221d083395027114c1868954d7c667b0f24227ffc9ab6ab3e2f9 *simlab/solvers
 384487c3e41eb98e5e5f03bfcb78d6122ef61d2e4ec5908cc7f398427b4c74bb *simlab/solvers/golden_check.py
 5b4316b8376d2d19fd3a47987124a0fb9e5a26ff4c6f03da25152ef90e59c4ad *simlab/solvers/nozzle_angelino.py
 8599df8d699e3e5e3b1532999131254f5036d7ccba254292b88055d4d909942e *simlab/solvers/pyfr_solver.py
+7d524555b9ebbf5ad40104f88f2bb0eed7877a71834a4a9a079cdc41fb86e7de *simlab/solvers/radioss_crash.py
 103497387087a2d1ab406911d9ab12e5d416cb1471191b43737e5923f715dd3d *simlab/solvers/step_structures.py
 ae111c4b4484e5ea5f87e38d5231016fd5851c9d6c94b71af8cbf5cb59fd0c5e *simlab/solvers/surrogate_predict.py
 b2e335e305ef66ec9327158d28f16e4b1e92366ba12e3814689704939dea0aa2 *simlab/spec.py

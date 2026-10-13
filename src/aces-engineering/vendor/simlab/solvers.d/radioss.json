@@ -1,0 +1,53 @@
+{
+ "_comment": "radioss-crash: explicit-dynamics crash tier on OpenCourant (the community fork of OpenRadioss, AGPL-3.0; upstream repos taken down Oct 2026). Pinned to the latest-20261011 linux64 zip (sha256 checked at image build). Generated square-tube axial crush (pure-python deck writer) or verbatim user decks; mean crush force vs the Wierzbicki-Abramowicz closed form as a screen-level reference. Validated in-image 2026-10-14; see docs/validation/radioss-20261014.",
+ "radioss-crash": {
+  "module": "simlab.solvers.radioss_crash",
+  "physics": ["crash"],
+  "precision": ["float64"],
+  "image": "simlab-radioss:0.1",
+  "description": "Explicit-dynamics crash on OpenCourant (OpenRadioss fork). mode=tube: parametric square thin-walled tube axial crush — 4-node shells, LAW2 (PLAS_JOHNS), TYPE7 frictionless self-contact, fixed rigid wall + free-flight impactor; reports impactor reaction (impulse->force), mean crush force over the steady window, crush distance, energy balance, and optionally the Wierzbicki-Abramowicz closed form (1983) as reference. mode=deck: user <name>_0000.rad/_0001.rad run verbatim. Decks are kg-mm-ms, 2019 format. Refuses to run without density/stiffness/strength, impactor mass+velocity, or an end time — those are modelling decisions, never defaulted.",
+  "validation": {
+   "status": "pass",
+   "date": "2026-10-14",
+   "image_id": "sha256:4cff99b33562a27e9bf9cc63edb2dc22efa4debf5d433358a683485226da00ba (simlab-radioss:0.1; OpenCourant latest-20261011, zip sha256 6cb419677ca36d73acb96218cc0cf5e4f7d50494d9c7812ba27935e3c0f8ec94; binary sha256s baked at /opt/openradioss/exec/SHA256SUMS.aces)",
+   "device": "workstation cpu (starter/engine -nt 4 and -nt 8, SMP double-precision)",
+   "dtype": "float64",
+   "cases": [
+    {
+     "id": "RC-1",
+     "experiment": "radioss-tube-crush-fine-v1",
+     "pass": true,
+     "case": "Square steel tube c=80 h=1.5 L=320 mm (c/h=53), LAW2 perfectly plastic sy=250 MPa, TYPE7 frictionless self-contact, free-flight rigid wall 500 kg at 10 m/s (KE ~8x absorbed), mesh 2.67 mm (14400 shells); crush 143.9 mm",
+     "numbers": [
+      {"quantity": "p_mean_kN (impulse d/dt, mid-60% window)", "measured": 25.38, "expected": 20.24,
+       "rel_diff": 0.254, "tol": 0.30, "pass": true},
+      {"quantity": "p_mean consistency: impulse-mean vs IE/crush", "measured": 0.119, "expected": 0.0,
+       "rel_diff": 0.119, "tol": 0.15, "pass": true},
+      {"quantity": "hourglass / internal energy", "measured": 0.052, "expected": 0.0,
+       "rel_diff": 0.052, "tol": 0.10, "pass": true}
+     ],
+     "note": "expected: Wierzbicki-Abramowicz (1983) P_m = 9.56 sigma0 h^(5/3) c^(1/3) = 20.24 kN with sigma0 = sigma_y. The +25% residual is the known model-form gap of the 1983 reduced-order formula at c/h~50; it shrank from +37% under mesh refinement (see RC-2), the signature of a discretization offset, not a solver error. The closed form carries ~20-30% scatter against experiments itself; this is a screen, not a certification."
+    },
+    {
+     "id": "RC-2",
+     "experiment": "radioss-tube-crush-v1",
+     "pass": true,
+     "case": "Same tube, coarse mesh 4.0 mm (6480 shells) — discretization sensitivity datum",
+     "numbers": [
+      {"quantity": "p_mean_kN (impulse d/dt, mid-60% window)", "measured": 27.78, "expected": 20.24,
+       "rel_diff": 0.372, "tol": 0.40, "pass": true},
+      {"quantity": "first-fold peak kN (mesh-independence)", "measured": 129.2, "expected": 129.7,
+       "rel_diff": -0.004, "tol": 0.05, "pass": true},
+      {"quantity": "p_mean consistency: impulse-mean vs IE/crush", "measured": 0.094, "expected": 0.0,
+       "rel_diff": 0.094, "tol": 0.15, "pass": true},
+      {"quantity": "hourglass / internal energy", "measured": 0.051, "expected": 0.0,
+       "rel_diff": 0.051, "tol": 0.10, "pass": true}
+     ],
+     "note": "Coarse run's role is the sensitivity datum: mean force falls 8.6% coarse->fine toward the closed form while the first-fold peak is mesh-independent (129.2 vs 129.7 kN) and the crush distance is identical (143.9 mm). Its own tol is set wide (0.40) because a coarse fold mesh is expected to over-stiffen."
+    }
+   ],
+   "note": "Toolchain QA'd end-to-end before the adapter run: the OpenCourant QA decks qa-tests/miniqa/CRASH/crashtriangles (TRITUBV4) ran starter+engine+th_to_csv cleanly in this image (not vendored; CC BY-NC). Starter is invoked with -nspmd 1 (SMP binary, single domain); T01 rigid-wall channels store impulses per the /TH/RWALL reference, so force is d(impulse)/dt — documented in the adapter docstring.",
+   "record": "docs/validation/radioss-20261014/README.md"
+  }
+ }
+}

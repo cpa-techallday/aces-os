@@ -128,6 +128,14 @@ def build_parser() -> argparse.ArgumentParser:
                    help="when the spec has a flow block: template a PyFR case on the exported part and dispatch it "
                         "to the rig (auto, needs a lane), only write the case files (template), or skip the stage "
                         "(off) (default auto)")
+    r.add_argument("--crash", choices=("auto", "template", "off"), default="auto",
+                   help="when the spec has a crash block: template a radioss-crash tube-crush case and dispatch "
+                        "it to the rig (auto, needs a lane), only write the case files (template), or skip the "
+                        "stage (off) (default auto)")
+    r.add_argument("--multibody", choices=("auto", "template", "off"), default="auto",
+                   help="when the spec has a multibody block: template an exudyn-multibody case (iftomm benchmark "
+                        "or a user model) and dispatch it to the rig (auto, needs a lane), only write the case "
+                        "files (template), or skip the stage (off) (default auto)")
     r.add_argument("--json", action="store_true", dest="json_out", help="print exactly one JSON document (result.json) on stdout")
     r.add_argument("--progress", choices=("auto", "bar", "lines", "jsonl", "none"), default="auto")
     r.add_argument("--quiet", action="store_true", help="no progress output (--progress none)")
@@ -230,7 +238,8 @@ def cmd_run(args: argparse.Namespace, argv: list[str]) -> int:
                    seed=args.seed, res=args.res, gen_res=args.gen_res, tol=args.tol, rounds=args.rounds,
                    check=args.check, check_budget=args.check_budget, allow_thin=args.allow_thin, strict=args.strict,
                    device=args.device, jobs=args.jobs, lane=args.lane, rig_sweep=args.rig_sweep,
-                   rig_budget=args.rig_budget, conforming=args.conforming, cfd=args.cfd, require_grade=args.require_grade,
+                   rig_budget=args.rig_budget, conforming=args.conforming, cfd=args.cfd, crash=args.crash,
+                   multibody=args.multibody, require_grade=args.require_grade,
                    json_out=args.json_out, progress=args.progress, quiet=args.quiet, note=args.note, argv=list(argv))
     return run(opts)
 

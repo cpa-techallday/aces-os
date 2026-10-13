@@ -83,6 +83,8 @@ class Options:
     rig_budget: float = 1800.0
     conforming: str = "auto"
     cfd: str = "auto"           # auto | template | off — the flow-block CFD stage's dispatch gate
+    crash: str = "auto"         # auto | template | off — the crash-block stage's dispatch gate
+    multibody: str = "auto"     # auto | template | off — the multibody-block stage's dispatch gate
     require_grade: str | None = None
     json_out: bool = False
     progress: str = "auto"
@@ -517,6 +519,10 @@ class _Pipeline:
             raise GoldenError(EXIT_USAGE, f"--conforming must be auto, rig, local or off, not {o.conforming!r}")
         if o.cfd not in ("auto", "template", "off"):
             raise GoldenError(EXIT_USAGE, f"--cfd must be auto, template or off, not {o.cfd!r}")
+        if o.crash not in ("auto", "template", "off"):
+            raise GoldenError(EXIT_USAGE, f"--crash must be auto, template or off, not {o.crash!r}")
+        if o.multibody not in ("auto", "template", "off"):
+            raise GoldenError(EXIT_USAGE, f"--multibody must be auto, template or off, not {o.multibody!r}")
         if o.require_grade is not None and o.require_grade not in GRADES:
             raise GoldenError(EXIT_USAGE, f"--require-grade must be one of {', '.join(GRADES)}, not {o.require_grade!r}")
         try:
@@ -918,9 +924,105 @@ class _Pipeline:
         self._end("flutter", text)
 
     # ---- stage 10 -----------------------------------------------------------------------------------------------
+    def stage_crash(self) -> None:
+        """Tier-3 crash: with a `crash:` block in the spec, template a radioss-crash tube-crush case and —
+        --crash auto with a live rig lane and a validated registry row — queue it on the rig and pull the result
+        back. Never blocks the structural result: every gap is a skipped stage or a recorded dispatch state."""
+        block = self.eff.get("crash")
+        if not block:
+            self._skip(10, "crash", "no crash block in the spec")
+            return
+        if self.opts.crash == "off":
+            self._skip(10, "crash", "--crash off")
+            return
+        crash_mod, spec_mod, rigcase = _mod("crash"), _mod("spec"), _mod("rigcase")
+        block_model = spec_mod.Crash(**block)
+        g, imp = block_model, block_model.impactor
+        self._begin(10, "crash", f"tube crush {g.width_m * 1e3:g} x {g.length_m * 1e3:g} x "
+                                 f"{g.thickness_m * 1e3:g} mm, {imp.mass_kg:g} kg at {imp.velocity_mps:g} m/s")
+        crash_dir = self.run.path("crash")
+        exp_id = rigcase.rig_experiment_id(self.run.run_id, "crash")
+        doc = crash_mod.write_case(crash_dir, name=exp_id, block=block, project=self.project,
+                                   owner=self.operator, hypothesis=self.eff.get("hypothesis"))
+        note = f"case in {self.run.rel(crash_dir)}"
+        session = self.session
+        row = rigcase.validated_row(session, crash_mod.SOLVER) if self.opts.crash == "auto" else None
+        if self.opts.crash == "template" or session is None or row is None:
+            why = ("--crash template" if self.opts.crash == "template" else
+                   "no rig lane" if session is None else "the rig registry has no validated radioss-crash solver")
+            rigcase.write_templated(crash_dir, schema=crash_mod.RIG_SCHEMA,
+                                    experiment=doc["experiment_doc"]["id"], why=why)
+            self.progress.line(f"  crash: templated, not dispatched ({why})")
+            self._end("crash", f"{note} — templated, not dispatched ({why})")
+            return
+        rec = crash_mod.dispatch(session.client, crash_dir=crash_dir, doc=doc, exp_id=exp_id,
+                                 principal=session.principal, budget_s=float(session.budget_s),
+                                 progress=self.progress)
+        text = f"{note} — rig: {rec['state']}" + (f" ({rec['reason']})" if rec.get("reason") else "")
+        res = rec.get("results") or {}
+        crush = res.get("crush") or {}
+        if rec["state"] == "delivered" and crush.get("p_mean_kN") is not None:
+            ref = (res.get("reference") or {}).get("p_mean_ref_kN")
+            text += (f"; P_mean {crush['p_mean_kN']:.2f} kN over {crush.get('crush_m', 0) * 1e3:.1f} mm" +
+                     (f" (W-A {ref:.2f} kN — a screen-level bound)" if ref else ""))
+        self.progress.line("  " + text)
+        self._end("crash", text)
+
+    # ---- stage 11 -----------------------------------------------------------------------------------------------
+    def stage_multibody(self) -> None:
+        """Tier-3 multibody: with a `multibody:` block in the spec, template an exudyn-multibody case (iftomm
+        benchmark or a user model script) and — --multibody auto with a live rig lane and a validated registry
+        row — queue it on the rig and pull the result back. Never blocks the structural result."""
+        block = self.eff.get("multibody")
+        if not block:
+            self._skip(11, "multibody", "no multibody block in the spec")
+            return
+        if self.opts.multibody == "off":
+            self._skip(11, "multibody", "--multibody off")
+            return
+        mb_mod, spec_mod, rigcase = _mod("multibody"), _mod("spec"), _mod("rigcase")
+        block_model = spec_mod.Multibody(**block)
+        self._begin(11, "multibody", f"{block_model.mode}" +
+                    (f", end {block_model.end_s:g} s, step {block_model.time_step_s:g} s"
+                     if block_model.mode == "iftomm_slider_crank" else f", model {block_model.script}"))
+        mb_dir = self.run.path("multibody")
+        exp_id = rigcase.rig_experiment_id(self.run.run_id, "multibody")
+        base_dir = Path((self.eff.get("derived") or {}).get("base_dir") or ".")
+        try:
+            doc = mb_mod.write_case(mb_dir, name=exp_id, block=block, base_dir=base_dir, project=self.project,
+                                    owner=self.operator, hypothesis=self.eff.get("hypothesis"))
+        except (FileNotFoundError, ValueError) as e:
+            self.progress.note(f"multibody: the case could not be written ({e})", "error")
+            self._end("multibody", str(e), state="failed")
+            return
+        note = f"case in {self.run.rel(mb_dir)}"
+        session = self.session
+        row = rigcase.validated_row(session, mb_mod.SOLVER) if self.opts.multibody == "auto" else None
+        if self.opts.multibody == "template" or session is None or row is None:
+            why = ("--multibody template" if self.opts.multibody == "template" else
+                   "no rig lane" if session is None
+                   else "the rig registry has no validated exudyn-multibody solver")
+            rigcase.write_templated(mb_dir, schema=mb_mod.RIG_SCHEMA,
+                                    experiment=doc["experiment_doc"]["id"], why=why)
+            self.progress.line(f"  multibody: templated, not dispatched ({why})")
+            self._end("multibody", f"{note} — templated, not dispatched ({why})")
+            return
+        rec = mb_mod.dispatch(session.client, multibody_dir=mb_dir, doc=doc, exp_id=exp_id,
+                              principal=session.principal, budget_s=float(session.budget_s),
+                              progress=self.progress)
+        text = f"{note} — rig: {rec['state']}" + (f" ({rec['reason']})" if rec.get("reason") else "")
+        res = rec.get("results") or {}
+        comp = res.get("comparison") or {}
+        if rec["state"] == "delivered" and comp:
+            worst = max((v.get("crank_angle_rad") or {}).get("max_abs", 0.0) for v in comp.values())
+            text += f"; worst crank-angle max-abs error {worst:.4g} rad over {len(comp)} references"
+        self.progress.line("  " + text)
+        self._end("multibody", text)
+
+    # ---- stage 12 -----------------------------------------------------------------------------------------------
     def stage_evidence(self) -> None:
         v = self.validation
-        self._begin(10, "evidence", "anchor the files, chain the bundle into the simlab ledger, golden.run into the aces ledger")
+        self._begin(12, "evidence", "anchor the files, chain the bundle into the simlab ledger, golden.run into the aces ledger")
         try:
             led = _mod("evidence").record(self.run, self.eff, self.project_info, self.aces, operator=self.operator,
                                           note=self.opts.note, verdict=v.get("verdict"), outcome=v.get("outcome")) or {}
@@ -937,9 +1039,9 @@ class _Pipeline:
         self.progress.line("  " + text)
         self._end("evidence", text)
 
-    # ---- stage 11 -----------------------------------------------------------------------------------------------
+    # ---- stage 13 -----------------------------------------------------------------------------------------------
     def stage_report(self) -> None:
-        self._begin(11, "report", "report.md, report.html, report.json")
+        self._begin(13, "report", "report.md, report.html, report.json")
         report = _mod("report")
         self.report_paths = report.write(self.run, report.assemble(self.run)) or {}
         self._end("report", ", ".join(self.run.rel(p) for p in self.report_paths.values() if p))
@@ -957,6 +1059,8 @@ class _Pipeline:
             self.stage_export()
             self.stage_cfd()
             self.stage_flutter()
+            self.stage_crash()
+            self.stage_multibody()
             self.stage_evidence()
             self.stage_report()
             code, message, hint = self.final_code()
