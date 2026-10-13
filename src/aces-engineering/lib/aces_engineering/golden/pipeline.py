@@ -893,9 +893,34 @@ class _Pipeline:
         self._end("cfd", text)
 
     # ---- stage 9 ------------------------------------------------------------------------------------------------
+    def stage_flutter(self) -> None:
+        """Tier-3 flutter screen: with an `aeroelasticity:` block in the spec, run the vendored flutter-screen
+        in-process (pure python, seconds; no rig lane). Never blocks the structural result: a solver error is a
+        failed stage, not a failed run."""
+        block = self.eff.get("aeroelasticity")
+        if not block:
+            self._skip(9, "flutter", "no aeroelasticity block in the spec")
+            return
+        self._begin(9, "flutter", f"flutter screen, section properties as named, sweep "
+                                  f"{block['speed_start_mps']:g}-{block['speed_stop_mps']:g} m/s")
+        try:
+            res = _mod("flutter").run_screen(block, self.run.path(".").resolve())
+        except Exception as e:  # noqa: BLE001 — the screen must not take the run down
+            self.progress.note(f"flutter: the screen failed ({type(e).__name__}: {e})", "error")
+            self._end("flutter", f"{type(e).__name__}: {e}", state="failed")
+            return
+        if res.get("flutter_speed_mps") is not None:
+            text = (f"flutter at {res['flutter_speed_mps']:.1f} m/s, {res['flutter_frequency_rad_s']:.1f} rad/s "
+                    f"(Mach {res['flutter_mach']:.2f}; {res['mach_note']})")
+        else:
+            text = res.get("flutter_note", "no flutter crossing in the sweep")
+        self.progress.line("  " + text)
+        self._end("flutter", text)
+
+    # ---- stage 10 -----------------------------------------------------------------------------------------------
     def stage_evidence(self) -> None:
         v = self.validation
-        self._begin(9, "evidence", "anchor the files, chain the bundle into the simlab ledger, golden.run into the aces ledger")
+        self._begin(10, "evidence", "anchor the files, chain the bundle into the simlab ledger, golden.run into the aces ledger")
         try:
             led = _mod("evidence").record(self.run, self.eff, self.project_info, self.aces, operator=self.operator,
                                           note=self.opts.note, verdict=v.get("verdict"), outcome=v.get("outcome")) or {}
@@ -912,9 +937,9 @@ class _Pipeline:
         self.progress.line("  " + text)
         self._end("evidence", text)
 
-    # ---- stage 10 -----------------------------------------------------------------------------------------------
+    # ---- stage 11 -----------------------------------------------------------------------------------------------
     def stage_report(self) -> None:
-        self._begin(10, "report", "report.md, report.html, report.json")
+        self._begin(11, "report", "report.md, report.html, report.json")
         report = _mod("report")
         self.report_paths = report.write(self.run, report.assemble(self.run)) or {}
         self._end("report", ", ".join(self.run.rel(p) for p in self.report_paths.values() if p))
@@ -931,6 +956,7 @@ class _Pipeline:
             self.stage_check()
             self.stage_export()
             self.stage_cfd()
+            self.stage_flutter()
             self.stage_evidence()
             self.stage_report()
             code, message, hint = self.final_code()

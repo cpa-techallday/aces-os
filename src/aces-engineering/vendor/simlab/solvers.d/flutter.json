@@ -1,0 +1,36 @@
+{
+ "_comment": "flutter-screen: bending-torsion flutter speed of a uniform cantilever wing — p-k eigenvalue iteration, incompressible strip theory with Theodorsen C(k) (Jones 2-pole), exact uniform-cantilever modal basis. Pure Python + numpy (no meshing, no external solver); runs anywhere numpy runs, so it carries the aces-golden image for consistency with the other pure-python adapters. A SCREEN: the Mach number of the answer is reported beside it, and past Mach ~0.3 the number is indicative, not citable. Validated on the workstation 2026-10-13 against the Goland (1945) wing; the numbers below are the adapter's own docs/validation/flutter-20261013/flutter/flutter.json.",
+ "flutter-screen": {
+  "module": "simlab.solvers.flutter_screen",
+  "physics": ["aeroelasticity"],
+  "precision": ["float64"],
+  "image": "aces-golden:0.1",
+  "description": "Flutter speed of a uniform cantilever wing from its section properties (EI, GJ, m, I_EA, EA/CG positions, semi-span, chord, density): p-k eigenvalue iteration over a speed sweep, incompressible strip theory with Theodorsen's C(k) (Jones 2-pole rational approximation), exact Euler-Bernoulli/St-Venant cantilever modal basis (n_bending + n_torsion configurable). Reports flutter speed + frequency + the coalescing modes + Mach of the answer, or honestly that no crossing lies in the sweep. Refuses to run with any wing property missing, EA/CG outside [0,1], or fewer than 40 integration stations. Incompressible only: past Mach ~0.3 results are indicative, not citable.",
+  "validation": {
+   "status": "pass",
+   "date": "2026-10-13",
+   "image_id": "workstation (pure python 3.11 + numpy 2.4.4; no solver binary involved)",
+   "device": "workstation cpu",
+   "dtype": "float64",
+   "cases": [
+    {
+     "id": "FL-1",
+     "experiment": "flutter-goland-v1",
+     "pass": true,
+     "case": "Goland (1945) uniform cantilever wing: half-span 6.096 m, chord 1.8288 m, EA 0.33c, CG 0.43c, EI 9.77e6 N m2, GJ 0.987e6 N m2, m 35.71 kg/m, I_EA 8.64 kg m, rho 1.225 kg/m3; 2 bending + 2 torsion modes, 200 stations, sweep 60-180 m/s by 5, bisected crossing",
+     "numbers": [
+      {"quantity": "flutter_speed_mps", "measured": 137.324, "expected": 137.16,
+       "rel_diff": 0.001197, "tol": 0.05, "pass": true},
+      {"quantity": "flutter_frequency_rad_s", "measured": 69.352, "expected": 70.2,
+       "rel_diff": -0.0121, "tol": 0.05, "pass": true},
+      {"quantity": "omega_bending_1_rad_s (in vacuo)", "measured": 49.490, "expected": 49.5,
+       "rel_diff": -0.0002, "tol": 0.01, "pass": true}
+     ],
+     "note": "expected: Patil et al. (2001) 137.16 m/s / 70.2 rad/s; literature band 135.6-137.2 m/s (Matter 136.41, Bristol binary 137.11). Mechanism is the textbook one: bending frequency rises (46->54 rad/s) while torsion falls (93->69 rad/s) and the torsion-dominated mode's damping crosses zero. In-vacuo bending reference is the Euler-Bernoulli root beta_1 = 1.8751."
+    }
+   ],
+   "note": "Ran on the workstation (the adapter is pure python; there is no solver binary to containerise). p-k iteration converged at every speed (pk_converged true). Flutter Mach 0.40: reported with the incompressible-assumption note, as the registry rule requires.",
+   "record": "docs/validation/flutter-20261013/flutter/flutter.json"
+  }
+ }
+}

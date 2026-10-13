@@ -322,6 +322,39 @@ class Flow(_Model):
         return self
 
 
+class Aeroelasticity(_Model):
+    """Optional Tier-3 flutter screen (`aeroelasticity:`): the vendored flutter-screen solver (p-k, strip theory
+    + Theodorsen/Jones, uniform-cantilever modal basis) run in-process — seconds, no rig, no mesh. The section
+    properties are named here explicitly: they are a property of a wing design, not extracted from the optimised
+    part, so the block refuses to guess any of them. Incompressible aerodynamics: the run reports the Mach of its
+    own answer, and past ~Mach 0.3 the number is indicative, not citable."""
+    semi_span_m: PositiveFloat
+    chord_m: PositiveFloat
+    ea_frac: float = Field(ge=0.0, le=1.0)     # elastic axis, fraction of chord from the leading edge
+    cg_frac: float = Field(ge=0.0, le=1.0)     # centre of mass, same datum
+    ei_Nm2: PositiveFloat                      # spanwise bending rigidity
+    gj_Nm2: PositiveFloat                      # torsion rigidity
+    m_kg_m: PositiveFloat                      # mass per unit span
+    i_ea_kg_m: PositiveFloat                   # mass moment of inertia about the elastic axis, per unit span
+    rho_kg_m3: PositiveFloat = 1.225           # freestream density (ISA sea level default, named here)
+    n_bending: int = Field(2, ge=1, le=8)
+    n_torsion: int = Field(2, ge=1, le=8)
+    speed_start_mps: PositiveFloat
+    speed_stop_mps: PositiveFloat
+    speed_step_mps: PositiveFloat
+    stations: int = Field(200, ge=40)
+
+    @model_validator(mode="after")
+    def _sweep(self) -> "Aeroelasticity":
+        if not self.speed_stop_mps > self.speed_start_mps:
+            raise ValueError(f"aeroelasticity.speed_stop_mps: {self.speed_stop_mps:g} must be above "
+                             f"speed_start_mps {self.speed_start_mps:g}")
+        if (self.speed_stop_mps - self.speed_start_mps) / self.speed_step_mps < 2:
+            raise ValueError("aeroelasticity.speeds: start/stop/step do not bracket a sweep of at least "
+                             "3 points")
+        return self
+
+
 class GoldenSpec(_Model):
     schema_id: Literal["aces-golden-spec/1"] = Field(alias="schema")
     name: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,47}$")
@@ -342,6 +375,7 @@ class GoldenSpec(_Model):
     verify: VerifyCfg = Field(default_factory=VerifyCfg)
     solver: SolverCfg = Field(default_factory=SolverCfg)
     flow: Flow | None = None    # optional Tier-1 CFD: a PyFR case on the exported part, queued on the rig
+    aeroelasticity: Aeroelasticity | None = None   # optional Tier-3 flutter screen, run in-process (seconds)
 
     @model_validator(mode="after")
     def _limits(self) -> "GoldenSpec":

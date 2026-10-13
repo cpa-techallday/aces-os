@@ -54,7 +54,7 @@ GRADE_RANK = {GRADE_PREVIEW: 0, GRADE_VERIFIED_DESKTOP: 1, GRADE_RIG: 2}
 METRICS = ("mass_kg", "mass_voxel_kg", "mesh_volume_mm3", "voxel_volume_mm3", "solid_fraction",
            "compliance_Nmm", "umax_mm", "vm_max_MPa", "vm_p99_MPa", "vm_p95_MPa")
 OUTPUTS = tuple(m for m in METRICS if m != "solid_fraction")  # what a spec may name as objective or constraint
-STAGES = ("compute", "inputs", "domain", "sweep", "loop", "check", "export", "cfd", "evidence", "report")
+STAGES = ("compute", "inputs", "domain", "sweep", "loop", "check", "export", "cfd", "flutter", "evidence", "report")
 ROLES = ("sweep", "verify", "check", "parity", "conforming")
 DESIGN_STATUSES = ("ok", "empty", "not-watertight", "multi-body", "detached-load", "detached-support",
                    "disconnected", "unconverged", "non-finite", "error", "rig-error", "rig-timeout", "rig-unreachable",
