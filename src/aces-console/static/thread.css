@@ -231,3 +231,12 @@ img.t-render { max-width: 100%; border-radius: 10px; border: 1px solid #17314f; 
 .sheet-cap { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #9fc3e3; }
 .sheet input[type="text"] { background: #071120; color: #e8f1fa; border: 1px solid #173352; border-radius: 6px; padding: 5px 8px; font-size: 12.5px; width: 120px; }
 .sheet input[disabled] { opacity: 0.45; }
+
+/* ops agent answer cards */
+.t-ops { gap: 8px; }
+.t-ops-line { font-size: 13.5px; line-height: 1.55; color: #c6d6e6; }
+.t-ops-table { display: flex; flex-direction: column; gap: 3px; border-top: 1px solid #173352; padding-top: 8px; }
+.t-ops-kv { display: flex; gap: 12px; justify-content: space-between; font-size: 12.5px; }
+.t-ops-k { color: #8aa0b8; }
+.t-ops-kv .mono { color: #dbe7f3; text-align: right; overflow-wrap: anywhere; }
+.t-ops-links { display: flex; gap: 14px; flex-wrap: wrap; border-top: 1px solid #173352; padding-top: 8px; }

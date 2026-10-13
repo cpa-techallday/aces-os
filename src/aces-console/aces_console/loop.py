@@ -34,7 +34,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from . import jobs, server
+from . import jobs, ops, server
 from .server import Request, Response, error, ok
 
 THREAD_RE = re.compile(r"^t-[0-9a-z]{8}$")
@@ -412,6 +412,13 @@ def h_message(req: Request) -> Response:
             return error(404, f"no thread {tid}", "not-found")
         if th is None:
             th = new_thread(app)
+        op = ops.reply(app, text.strip(), inbox_dir=_dir(app) / "inbox")
+        if op is not None:
+            th["messages"].append(_msg("user", "text", text.strip()))
+            th["messages"].append(_msg("ops", "ops", op["text"], card={"ops": op["card"]}))
+            save_thread(app, th)
+            n = jobs._record(app, "console.loop.message", {"thread": th["id"], "chars": len(text), "ops": op["card"]["title"]})
+            return ok({"thread": th, "ledger_n": n}, status=201)
         parsed = parse_request(text.strip())
         plan = build_plan(parsed)
         th["messages"].append(_msg("user", "text", text.strip()))
@@ -540,6 +547,24 @@ def h_file(req: Request) -> Response:
                              "Cache-Control": "private, max-age=3600"})
 
 
+def h_inbox(req: Request) -> Response:
+    """Serve a file the ops agent pulled from the rig into the loop inbox. The name regex (no slashes) is the
+    whole traversal defence."""
+    name = req.params.get("name", "")
+    if not ops.INBOX_RE.match(name):
+        return error(400, "name must be an inbox file name", "bad-request")
+    p = _dir(req.app) / "inbox" / name
+    if not p.is_file():
+        return error(404, f"no inbox file {name}", "not-found")
+    ext = p.suffix.lower()
+    ctype = FILE_CTYPES.get(ext, "application/octet-stream")
+    disp = "inline" if ext in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".pdf") else "attachment"
+    original = name.split("--", 1)[1] if "--" in name else name  # strip the <eid>-- prefix for the download name
+    return Response(status=200, body=p.read_bytes(), content_type=ctype,
+                    headers={"Content-Disposition": f'{disp}; filename="{original}"',
+                             "Cache-Control": "private, max-age=3600"})
+
+
 def h_plan_approve(req: Request) -> Response:
     app = req.app
     body = req.json or {}
@@ -640,6 +665,7 @@ def install(register) -> None:
     register("POST", "/api/loop/upload", h_upload)
     server.allow_body("/api/loop/upload", UPLOAD_BODY_CAP)
     register("GET", "/api/loop/file/{tid}/{name}", h_file)
+    register("GET", "/api/loop/inbox/{name}", h_inbox)
     register("GET", "/api/loop/threads", h_threads)
     register("GET", "/api/loop/thread/{id}", h_thread)
     register("POST", "/api/loop/plan/approve", h_plan_approve)

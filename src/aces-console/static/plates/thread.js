@@ -144,6 +144,7 @@ function renderMessage(m, live = { plan: false, drafts: false }) {
     if (m.card.plan) kids.push(planCard(m.card.plan, live.plan));
     if (m.card.drafts) kids.push(draftsCard(m.card.drafts, live.drafts));
     if (m.card.run) kids.push(runChip(m.card.run));
+    if (m.card.ops) kids.push(opsCard(m.card.ops));
   }
   return el("div.t-msg" + (mine ? ".user" : ".agent"), kids);
 }
@@ -273,6 +274,23 @@ function runChip(run) {
   chip.dataset.project = run.project;
   watchJob(chip, run.job);
   return chip;
+}
+
+// an ops card: the ops agent's answer — prose lines, a kv table of the underlying values, deep links
+function opsCard(ops) {
+  const { el } = R.ctx.dom;
+  const kids = [el("div.t-card-title", { text: ops.title || "ops" })];
+  for (const line of ops.lines || []) kids.push(el("div.t-ops-line", { text: line }));
+  if (ops.kv && ops.kv.length) {
+    const rows = ops.kv.map(([k, v]) => el("div.t-ops-kv", [
+      el("span.t-ops-k", { text: String(k) }), el("span.mono", { text: String(v) })]));
+    kids.push(el("div.t-ops-table", rows));
+  }
+  if (ops.links && ops.links.length) {
+    kids.push(el("div.t-ops-links", ops.links.map((l) =>
+      el("a.t-run-link", { href: l.href, text: l.label }))));
+  }
+  return el("div.t-card.t-ops", kids);
 }
 
 async function watchJob(chip, jobId) {
