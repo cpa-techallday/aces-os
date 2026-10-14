@@ -82,8 +82,11 @@ MATERIALS = {
 KINDS = ("bracket", "mount", "frame", "chassis", "enclosure", "housing", "antenna", "duct", "impeller",
          "arm", "linkage", "panel", "tower", "mast")
 VEHICLE_WORDS = ("vehicle", "off-roader", "offroader", "rover", "car", "truck", "buggy", "ugv")
-UNWIRED_PHYSICS = {"crash": ("crash",), "multibody": ("multibody", "suspension travel", "articulation"),
-                   "aeroelasticity": ("aeroelastic", "flutter")}
+# Tier-3 physics keywords: these stages are live in golden (wired 2026-10-13/14); the loop detects the intent
+# here and build_plan decides per-request whether the item is wired (iftomm benchmark by name) or tracked with
+# exactly what the draft still needs — see _tier3_item.
+TIER3_PHYSICS = {"crash": ("crash",), "multibody": ("multibody", "suspension travel", "articulation"),
+                 "aeroelasticity": ("aeroelastic", "flutter")}
 
 NUM = r"(\d+(?:\.\d+)?)"
 
@@ -155,7 +158,7 @@ def parse_request(text: str) -> dict[str, Any]:
     # whole words only: "rf" as a substring matches "airflow"
     if re.search(r"\b(?:antenna|radar|rf|s11)\b", t) or "gain db" in t:
         out["physics"].add("em")
-    for phys, words in UNWIRED_PHYSICS.items():
+    for phys, words in TIER3_PHYSICS.items():
         if any(w in t for w in words):
             out["physics"].add(phys)
     return out
@@ -164,9 +167,14 @@ def parse_request(text: str) -> dict[str, Any]:
 WIRED = {"structures": "golden (SIMP sweep → surrogate optimise → verified FEA; ccx conforming check validated 2026-10-10)",
          "cfd": "PyFR 3.1 on the rig — golden stage cfd (flow: block → templated case → rig dispatch) wired 2026-10-12; loop drafts carry the flow block when a speed is named (Tier 1)",
          "thermal": "CalculiX steady-state thermal — adapter not written yet (Tier 1)",
-         "em": "Palace / gprMax EM (aces-tile-em) — registered on the rig, wr90_through rig smoke PASS 2026-10-12; loop dispatch not wired yet (Tier 1)"}
-# what the loop can actually run today: structures, and cfd when the flow block is fully known (a speed under the
-# incompressible gate). Everything else is named and tracked, never promised.
+         "em": "Palace / gprMax EM (aces-tile-em) — registered on the rig, wr90_through rig smoke PASS 2026-10-12; loop dispatch not wired yet (Tier 1)",
+         "multibody": "Exudyn 1.13.6 on the rig — golden stage multibody (multibody: block → templated case → rig dispatch) wired 2026-10-14; iftomm slider-crank validated against the three published references 2026-10-14 (Tier 3)",
+         "crash": "OpenCourant (OpenRadioss fork) on the rig — golden stage crash (crash: block → templated case → rig dispatch) wired 2026-10-14; square-tube crush validated against Wierzbicki-Abramowicz 2026-10-14 (Tier 3)",
+         "aeroelasticity": "flutter-screen in-process (p-k, strip theory + Theodorsen/Jones) — golden stage flutter (aeroelasticity: block) wired 2026-10-13; Goland wing validated 2026-10-13 (Tier 3)"}
+# what the loop can actually run today: structures, cfd when the flow block is fully known (a speed under the
+# incompressible gate), and the iftomm multibody benchmark when one is asked for by name. The other Tier-3
+# stages are live in golden but their blocks carry modelling decisions (tube and impactor, wing section
+# properties) that a chat message does not — those items are tracked with exactly what to say or edit.
 LOOP_WIRED = {"structures"}
 
 
@@ -205,12 +213,63 @@ def _cfd_item(req: dict[str, Any], kind: str) -> dict[str, Any]:
     return item
 
 
+def _crash_item(kind: str) -> dict[str, Any]:
+    """The crash plan item: the golden stage is live, but its block is six modelling decisions (tube
+    width/length/thickness, material, impactor mass + velocity, end time) that a chat message does not carry —
+    tracked with exactly what to say or edit, never guessed."""
+    return {"key": f"{kind}-crash", "title": f"{kind} — crash", "physics": ["crash"],
+            "answers": "mean crush force, crush distance, energy balance, Wierzbicki-Abramowicz comparison",
+            "wired": False,
+            "reason": ("golden's crash stage is live (radioss-crash on the rig, tube crush validated "
+                       "2026-10-14) — a draft needs the tube width/length/thickness, the material, the impactor "
+                       "mass + velocity and an end time; say them or edit the draft's crash: block — tracked")}
+
+
+def _multibody_item(req: dict[str, Any], kind: str) -> dict[str, Any]:
+    """The multibody plan item: the iftomm slider-crank benchmark's parameters are benchmark-fixed (honest
+    defaults end 1 s, step 1 ms), so asking for the benchmark by name is wired end-to-end. A mechanism of the
+    user's own needs an Exudyn model (script mode) — tracked until one is attached."""
+    item: dict[str, Any] = {"key": f"{kind}-multibody", "title": f"{kind} — multibody", "physics": ["multibody"],
+                            "answers": "crank-angle and slider-position trajectories vs the three published "
+                                       "iftomm references (max/RMS errors + inter-reference spread)"}
+    if "benchmark" in req["text"].lower():
+        item.update(wired=True, reason=WIRED["multibody"],
+                    multibody={"mode": "iftomm_slider_crank"})
+        return item
+    item.update(wired=False,
+                reason=("golden's multibody stage is live (exudyn-multibody on the rig, iftomm slider-crank "
+                        "validated 2026-10-14) — say “benchmark” to run the iftomm reference case, or attach an "
+                        "Exudyn .py model for your own mechanism (script mode; it must write "
+                        "exudyn_results.json) — tracked"))
+    return item
+
+
+def _aeroelasticity_item(kind: str) -> dict[str, Any]:
+    """The flutter plan item: the screen runs in-process in seconds, but its block is the wing's section
+    properties — eight numbers a chat message does not carry; tracked with exactly what to say or edit."""
+    return {"key": f"{kind}-aeroelasticity", "title": f"{kind} — aeroelasticity", "physics": ["aeroelasticity"],
+            "answers": "flutter speed + frequency and the Mach of the answer (an incompressible screen)",
+            "wired": False,
+            "reason": ("golden's flutter screen is live (in-process, Goland-validated 2026-10-13) — a draft "
+                       "needs the wing's section properties (semi-span, chord, EA/CG positions, EI, GJ, mass "
+                       "and inertia per unit span) and a speed sweep; say them or edit the draft's "
+                       "aeroelasticity: block — tracked")}
+
+
+def _tier3_item(req: dict[str, Any], kind: str, p: str) -> dict[str, Any]:
+    if p == "crash":
+        return _crash_item(kind)
+    if p == "multibody":
+        return _multibody_item(req, kind)
+    return _aeroelasticity_item(kind)
+
+
 def build_plan(req: dict[str, Any]) -> dict[str, Any]:
     """The plan card: line items with physics, wiring state and the question each answers. Honest about gaps."""
     items: list[dict[str, Any]] = []
     c = req["constraints"]
     physics = sorted(req["physics"])
-    unwired = [p for p in physics if p in UNWIRED_PHYSICS]
+    tier3 = [p for p in physics if p in TIER3_PHYSICS]
     kind = req["kind"] or "part"
 
     if req["vehicle"]:
@@ -228,7 +287,10 @@ def build_plan(req: dict[str, Any]) -> dict[str, Any]:
                           "wired": False, "reason": WIRED["thermal"]})
         items.append({"key": "vehicle-integration", "title": "whole-vehicle dynamics",
                       "physics": ["multibody"], "answers": "ride, articulation, rollover",
-                      "wired": False, "reason": "multibody dynamics is not wired yet (Tier 3) — tracked"})
+                      "wired": False,
+                      "reason": ("golden's multibody stage is live (exudyn-multibody on the rig, validated "
+                                 "2026-10-14) but whole-vehicle ride wants a vehicle model, not the iftomm "
+                                 "benchmark — attach an Exudyn .py (script mode) when one exists — tracked")})
         # a vehicle that names a speed gets its cfd item like any other request (drag matters at speed)
         if "cfd" in physics:
             items.append(_cfd_item(req, "vehicle"))
@@ -247,7 +309,7 @@ def build_plan(req: dict[str, Any]) -> dict[str, Any]:
                       "wired": True})
         # non-structural physics the request named: wired when the loop can truly run it, tracked items otherwise
         for p in physics:
-            if p in LOOP_WIRED or p in UNWIRED_PHYSICS:
+            if p in LOOP_WIRED or p in TIER3_PHYSICS:
                 continue
             if p == "cfd":
                 items.append(_cfd_item(req, kind))
@@ -256,9 +318,8 @@ def build_plan(req: dict[str, Any]) -> dict[str, Any]:
                        "em": "gain, S11, RF performance"}.get(p, p)
             items.append({"key": f"{kind}-{p}", "title": f"{kind} — {p}", "physics": [p], "answers": answers,
                           "wired": False, "reason": WIRED.get(p, f"{p} is not wired yet")})
-    for p in unwired:
-        items.append({"key": p, "title": f"{p} analysis", "physics": [p], "answers": p,
-                      "wired": False, "reason": f"{p} is not wired yet (Tier 3) — tracked"})
+    for p in tier3:
+        items.append(_tier3_item(req, kind, p))
     missing = []
     if not any(i["wired"] for i in items):
         missing.append("nothing in this request maps to a wired solver")
@@ -326,6 +387,13 @@ def spec_draft(req: dict[str, Any], item: dict[str, Any], slug: str, uploads: li
         if refusal is not None:
             raise ValueError(refusal)
         spec["flow"] = {"velocity_mps": v, "medium": medium}
+    if item.get("wired") and item.get("physics") == ["multibody"]:
+        # a wired multibody item carries its block so confirm-to-run dispatches golden's multibody stage; the
+        # iftomm benchmark's parameters are benchmark-fixed, so the block is complete as named in the plan item
+        block = item.get("multibody")
+        if not block:
+            raise ValueError("a wired multibody draft needs the plan item's multibody block")
+        spec["multibody"] = dict(block)
     spec["_missing"] = missing
     spec["_constraints_not_in_structural_spec"] = {
         k: v for k, v in c.items()

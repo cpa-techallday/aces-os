@@ -350,5 +350,109 @@ class UploadHttpTest(unittest.TestCase):
         self.assertEqual(status, 400)
 
 
+class Tier3PlanWiringTest(unittest.TestCase):
+    """The Tier-3 plan items (crash / multibody / aeroelasticity): the golden stages are live (wired
+    2026-10-13/14), so the loop never says "not wired yet" — the iftomm benchmark by name is wired end-to-end,
+    everything else is tracked with exactly what the draft still needs."""
+
+    @staticmethod
+    def item(plan: dict, phys: str) -> dict | None:
+        return next((i for i in plan["items"] if i["physics"] == [phys]), None)
+
+    def test_keywords_detect_the_tier3_intent(self):
+        self.assertIn("crash", loop.parse_request("a crash-worthy battery enclosure")["physics"])
+        self.assertIn("multibody", loop.parse_request("suspension travel of the arm")["physics"])
+        self.assertIn("multibody", loop.parse_request("multibody check of the linkage")["physics"])
+        self.assertIn("aeroelasticity", loop.parse_request("flutter of the wing panel")["physics"])
+
+    def test_multibody_benchmark_by_name_is_wired(self):
+        plan = loop.build_plan(loop.parse_request("run the multibody benchmark"))
+        item = self.item(plan, "multibody")
+        self.assertTrue(item["wired"])
+        self.assertEqual(item["multibody"], {"mode": "iftomm_slider_crank"})
+        self.assertIn("validated", item["reason"])
+
+    def test_multibody_without_benchmark_is_tracked_with_the_way_forward(self):
+        plan = loop.build_plan(loop.parse_request("suspension travel of the arm"))
+        item = self.item(plan, "multibody")
+        self.assertFalse(item["wired"])
+        self.assertIn("benchmark", item["reason"])
+        self.assertIn("Exudyn .py", item["reason"])
+        self.assertNotIn("not wired yet", item["reason"])
+
+    def test_crash_is_tracked_naming_the_six_modelling_decisions(self):
+        plan = loop.build_plan(loop.parse_request("a crash-worthy battery enclosure"))
+        item = self.item(plan, "crash")
+        self.assertFalse(item["wired"])
+        self.assertIn("crash stage is live", item["reason"])
+        for needed in ("width/length/thickness", "impactor", "end time"):
+            self.assertIn(needed, item["reason"])
+        self.assertNotIn("not wired yet", item["reason"])
+
+    def test_aeroelasticity_is_tracked_naming_the_section_properties(self):
+        plan = loop.build_plan(loop.parse_request("flutter of the wing panel"))
+        item = self.item(plan, "aeroelasticity")
+        self.assertFalse(item["wired"])
+        self.assertIn("flutter screen is live", item["reason"])
+        self.assertIn("section properties", item["reason"])
+        self.assertNotIn("not wired yet", item["reason"])
+
+    def test_vehicle_integration_reason_names_script_mode(self):
+        plan = loop.build_plan(loop.parse_request("a 1500 kg six-wheeled off-roader"))
+        item = next(i for i in plan["items"] if i["key"] == "vehicle-integration")
+        self.assertFalse(item["wired"])
+        self.assertIn("script mode", item["reason"])
+        self.assertNotIn("not wired yet", item["reason"])
+
+
+class Tier3DraftTest(unittest.TestCase):
+    def test_wired_multibody_draft_carries_the_block(self):
+        req = loop.parse_request("run the multibody benchmark")
+        item = next(i for i in loop.build_plan(req)["items"] if i["physics"] == ["multibody"])
+        draft = loop.spec_draft(req, item, "abc12345-part-multibody")
+        self.assertEqual(draft["multibody"], {"mode": "iftomm_slider_crank"})
+        self.assertEqual(draft["schema"], "aces-golden-spec/1")
+
+    def test_wired_multibody_item_without_a_block_is_refused(self):
+        req = loop.parse_request("run the multibody benchmark")
+        item = {"key": "part-multibody", "title": "part — multibody", "physics": ["multibody"], "wired": True}
+        with self.assertRaises(ValueError) as ctx:
+            loop.spec_draft(req, item, "abc12345-part-multibody")
+        self.assertIn("multibody block", str(ctx.exception))
+
+
+class Tier3HttpTest(unittest.TestCase):
+    """Message → plan → approve for a wired Tier-3 item, end to end on the real routes."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.c = Console(tag="loop-tier3")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.c.close()
+
+    def test_approve_a_wired_multibody_item_yields_a_draft_with_the_block(self):
+        status, _, body = self.c.post("/api/loop/message", {"text": "run the multibody benchmark"})
+        self.assertEqual(status, 201, body)
+        th = body["data"]["thread"]
+        item = next(i for i in th["messages"][-1]["card"]["plan"]["items"] if i["physics"] == ["multibody"])
+        self.assertTrue(item["wired"])
+        status, _, body = self.c.post("/api/loop/plan/approve", {"thread": th["id"], "keep": [item["key"]]})
+        self.assertEqual(status, 200, body)
+        draft = body["data"]["drafts"][item["key"]]
+        self.assertEqual(draft["multibody"], {"mode": "iftomm_slider_crank"})
+
+    def test_approve_a_tracked_crash_item_is_refused_with_the_reason(self):
+        status, _, body = self.c.post("/api/loop/message", {"text": "a crash-worthy battery enclosure"})
+        self.assertEqual(status, 201, body)
+        th = body["data"]["thread"]
+        item = next(i for i in th["messages"][-1]["card"]["plan"]["items"] if i["physics"] == ["crash"])
+        status, _, body = self.c.post("/api/loop/plan/approve", {"thread": th["id"], "keep": [item["key"]]})
+        self.assertEqual(status, 409)
+        self.assertEqual(body["code"], "unwired")
+        self.assertIn("crash stage is live", body["error"])
+
+
 if __name__ == "__main__":
     unittest.main()
