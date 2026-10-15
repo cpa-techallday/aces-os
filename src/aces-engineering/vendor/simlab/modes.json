@@ -16,6 +16,14 @@
     "keep_services": [],
     "stop_services": ["apodex-1", "apodex-2", "apodex-3", "strategist", "tools", "cad"]
   },
+  "decompiler": {
+    "label": "Decompiler (aces-decompiler stack: GPUs 0-5 deep Qwen2.5-Coder-32B-AWQ, 6 triage 7B, 7 bge-m3 embeddings; simulation suspended)",
+    "sim_gpus": [],
+    "llm_gpus": [],
+    "rest": [],
+    "keep_services": [],
+    "stop_services": ["apodex-1", "apodex-2", "apodex-3", "strategist", "tools", "cad"]
+  },
   "batch-overnight": {
     "label": "existing GRID CONTROL mode; no simulation GPUs unless Aaron assigns some",
     "sim_gpus": []
