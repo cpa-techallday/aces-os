@@ -17,8 +17,8 @@
     "stop_services": ["apodex-1", "apodex-2", "apodex-3", "strategist", "tools", "cad"]
   },
   "decompiler": {
-    "label": "Decompiler (aces-decompiler stack: GPUs 0-5 deep Qwen2.5-Coder-32B-AWQ, 6 triage 7B, 7 bge-m3 embeddings; simulation suspended)",
-    "sim_gpus": [],
+    "label": "Decompiler + Sim coexistence (decompiler stack on GPUs 0-3: deep 32B TP=4 + triage + embeddings; simulation keeps 4-7)",
+    "sim_gpus": [4, 5, 6, 7],
     "llm_gpus": [],
     "rest": [],
     "keep_services": [],
